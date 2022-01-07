@@ -19,7 +19,7 @@ use crate::integrator::Timestep;
 
 use crate::laser_cooling::repump::*;
 
-const LASER_CACHE_SIZE: usize = 16;
+// const LASER_CACHE_SIZE: usize = 16;
 
 /// This sytem calculates the forces from absorbing photons from the CoolingLight entities.
 ///
@@ -64,10 +64,10 @@ impl<'a, const N: usize> System<'a> for CalculateAbsorptionForcesSystem<N> {
             .collect();
 
         // Perform the iteration over atoms, `LASER_CACHE_SIZE` at a time.
-        for base_index in (0..laser_cache.len()).step_by(LASER_CACHE_SIZE) {
-            let max_index = laser_cache.len().min(base_index + LASER_CACHE_SIZE);
+        for base_index in (0..laser_cache.len()).step_by(N) {
+            let max_index = laser_cache.len().min(base_index + N);
             let slice = &laser_cache[base_index..max_index];
-            let mut laser_array = vec![laser_cache[0]; LASER_CACHE_SIZE];
+            let mut laser_array = vec![laser_cache[0]; N];
             laser_array[..max_index].copy_from_slice(slice);
             let number_in_iteration = slice.len();
 
