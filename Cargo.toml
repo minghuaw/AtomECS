@@ -8,7 +8,7 @@ license = "GPL-3.0-or-later"
 name = "atomecs"
 readme = "README.md"
 repository = "https://github.com/TeamAtomECS/AtomECS"
-version = "0.6.0"
+version = "0.7.1"
 
 [dependencies]
 atomecs-derive = "0.1.0"
@@ -33,10 +33,6 @@ specs-derive = "0.4.1"
 [dev-dependencies]
 criterion = "0.3"
 gnuplot = "0.0.37"
-
-[[bench]]
-harness = false
-name = "rate_calculation"
 
 [profile.release]
 codegen-units = 16
