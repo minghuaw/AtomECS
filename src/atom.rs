@@ -59,7 +59,7 @@ impl XYZPosition for Position {
 /// Velocity of an entity in space, with respect to cartesian x,y,z axes.
 ///
 /// SI units (metres/second)
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Velocity {
     /// velocity vector in 3D in units of m/s
     pub vel: Vector3<f64>,
@@ -93,7 +93,7 @@ impl Component for InitialVelocity {
 /// Force applies to an entity, with respect to cartesian x,y,z axes.
 ///
 /// SI units (Newtons)
-#[derive(Copy, Clone, Serialize)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Force {
     /// force vector in 3D in units of N
     pub force: Vector3<f64>,
@@ -156,11 +156,15 @@ impl Plugin for AtomPlugin {
     fn build(&self, builder: &mut crate::simulation::SimulationBuilder) {
         register_components(&mut builder.world);
 
-        builder.dispatcher_builder.add(DeflagNewAtomsSystem, "deflag", &[]);
-        builder.dispatcher_builder.add(AddOldForceToNewAtomsSystem, "", &[]);
+        builder
+            .dispatcher_builder
+            .add(DeflagNewAtomsSystem, "deflag", &[]);
+        builder
+            .dispatcher_builder
+            .add(AddOldForceToNewAtomsSystem, "", &[]);
     }
 
-    fn deps(&self) -> Vec::<Box<dyn Plugin>> {
+    fn deps(&self) -> Vec<Box<dyn Plugin>> {
         Vec::new()
     }
 }

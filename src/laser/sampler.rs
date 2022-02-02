@@ -1,14 +1,14 @@
 //! Additional utilities for laser samplers.
 extern crate serde;
 use crate::laser::index::LaserIndex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 extern crate nalgebra;
 
 use crate::laser_cooling::CoolingLight;
 
 /// Tracks which slots in the laser sampler arrays are currently used for cooling light.
-#[derive(Clone, Copy, Default, Serialize)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize)]
 pub struct LaserSamplerMask {
     /// Marks whether a cooling light exists for this slot in the laser sampler array.
     pub filled: bool,

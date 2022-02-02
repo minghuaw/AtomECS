@@ -2,27 +2,33 @@
 extern crate serde;
 use std::marker::PhantomData;
 
-use crate::magnetic::MagneticFieldSampler;
 use crate::constant::HBAR;
 use crate::initiate::NewlyCreated;
-use serde::Serialize;
+use crate::magnetic::MagneticFieldSampler;
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 
 use super::transition::TransitionComponent;
 
 /// Represents the (angular) Zeemanshift of the atom depending on the magnetic field it experiences
-#[derive(Clone, Copy, Serialize)]
-pub struct ZeemanShiftSampler<T> where T : TransitionComponent {
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub struct ZeemanShiftSampler<T>
+where
+    T: TransitionComponent,
+{
     /// Zeemanshift for sigma plus transition in rad/s
     pub sigma_plus: f64,
     /// Zeemanshift for sigma minus transition in rad/s
     pub sigma_minus: f64,
     /// Zeemanshift for pi transition in rad/s
     pub sigma_pi: f64,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
 
-impl<T> Default for ZeemanShiftSampler<T> where T : TransitionComponent {
+impl<T> Default for ZeemanShiftSampler<T>
+where
+    T: TransitionComponent,
+{
     fn default() -> Self {
         ZeemanShiftSampler::<T> {
             /// Zeemanshift for sigma plus transition in rad/s
@@ -31,20 +37,28 @@ impl<T> Default for ZeemanShiftSampler<T> where T : TransitionComponent {
             sigma_minus: f64::NAN,
             /// Zeemanshift for pi transition in rad/s
             sigma_pi: f64::NAN,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
 
-impl<T> Component for ZeemanShiftSampler<T> where T : TransitionComponent + 'static {
+impl<T> Component for ZeemanShiftSampler<T>
+where
+    T: TransitionComponent + 'static,
+{
     type Storage = VecStorage<Self>;
 }
 
 /// Attaches the ZeemanShifSampler component to newly created atoms.
 #[derive(Default)]
-pub struct AttachZeemanShiftSamplersToNewlyCreatedAtomsSystem<T>(PhantomData<T>) where T : TransitionComponent;
+pub struct AttachZeemanShiftSamplersToNewlyCreatedAtomsSystem<T>(PhantomData<T>)
+where
+    T: TransitionComponent;
 
-impl<'a, T> System<'a> for AttachZeemanShiftSamplersToNewlyCreatedAtomsSystem<T> where T : TransitionComponent {
+impl<'a, T> System<'a> for AttachZeemanShiftSamplersToNewlyCreatedAtomsSystem<T>
+where
+    T: TransitionComponent,
+{
     type SystemData = (
         Entities<'a>,
         ReadStorage<'a, NewlyCreated>,
@@ -60,8 +74,13 @@ impl<'a, T> System<'a> for AttachZeemanShiftSamplersToNewlyCreatedAtomsSystem<T>
 
 /// Calculates the Zeeman shift for each atom in each cooling beam.
 #[derive(Default)]
-pub struct CalculateZeemanShiftSystem<T>(PhantomData<T>) where T : TransitionComponent;
-impl<'a, T> System<'a> for CalculateZeemanShiftSystem<T> where T : TransitionComponent {
+pub struct CalculateZeemanShiftSystem<T>(PhantomData<T>)
+where
+    T: TransitionComponent;
+impl<'a, T> System<'a> for CalculateZeemanShiftSystem<T>
+where
+    T: TransitionComponent,
+{
     type SystemData = (
         WriteStorage<'a, ZeemanShiftSampler<T>>,
         ReadStorage<'a, MagneticFieldSampler>,
@@ -94,7 +113,9 @@ pub mod tests {
     use super::*;
 
     extern crate specs;
-    use crate::{constant::HBAR, species::Strontium88_461, laser_cooling::transition::AtomicTransition};
+    use crate::{
+        constant::HBAR, laser_cooling::transition::AtomicTransition, species::Strontium88_461,
+    };
     use assert_approx_eq::assert_approx_eq;
     extern crate nalgebra;
     use nalgebra::{Matrix3, Vector3};
@@ -128,7 +149,7 @@ pub mod tests {
                 .get(atom1)
                 .expect("entity not found")
                 .sigma_plus,
-                Strontium88_461::mup() / HBAR * 1.0,
+            Strontium88_461::mup() / HBAR * 1.0,
             1e-5_f64
         );
 
@@ -137,7 +158,7 @@ pub mod tests {
                 .get(atom1)
                 .expect("entity not found")
                 .sigma_minus,
-                Strontium88_461::mum() / HBAR * 1.0,
+            Strontium88_461::mum() / HBAR * 1.0,
             1e-5_f64
         );
         assert_approx_eq!(
@@ -145,7 +166,7 @@ pub mod tests {
                 .get(atom1)
                 .expect("entity not found")
                 .sigma_pi,
-                Strontium88_461::muz() / HBAR * 1.0,
+            Strontium88_461::muz() / HBAR * 1.0,
             1e-5_f64
         );
     }
