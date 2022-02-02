@@ -4,43 +4,55 @@ extern crate serde;
 
 use std::marker::PhantomData;
 
+use super::transition::TransitionComponent;
 use super::CoolingLight;
-use super::transition::{TransitionComponent};
 use crate::laser::gaussian::GaussianBeam;
 use crate::laser::index::LaserIndex;
 use crate::laser::intensity::LaserIntensitySamplers;
 use crate::laser_cooling::sampler::LaserDetuningSamplers;
 use crate::magnetic::MagneticFieldSampler;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 
 /// Represents the rate coefficient of the atom with respect to a specific CoolingLight entity, for the given transition.
-#[derive(Clone, Copy, Serialize)]
-pub struct RateCoefficient<T> where T : TransitionComponent {
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub struct RateCoefficient<T>
+where
+    T: TransitionComponent,
+{
     /// rate coefficient in Hz
     pub rate: f64,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
 
-impl<T> Default for RateCoefficient<T> where T : TransitionComponent {
+impl<T> Default for RateCoefficient<T>
+where
+    T: TransitionComponent,
+{
     fn default() -> Self {
         RateCoefficient {
             /// rate coefficient in Hz
             rate: f64::NAN,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
 
 /// Component that holds a Vector of `RateCoefficient`
-#[derive(Clone, Copy, Serialize)]
-pub struct RateCoefficients<T, const N: usize> where T : TransitionComponent {
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub struct RateCoefficients<T, const N: usize>
+where
+    T: TransitionComponent,
+{
     /// Vector of `RateCoefficient` where each entry corresponds to a different CoolingLight entity
     #[serde(with = "serde_arrays")]
     pub contents: [RateCoefficient<T>; N],
 }
 
-impl<T, const N: usize> Component for RateCoefficients<T, N> where T : TransitionComponent {
+impl<T, const N: usize> Component for RateCoefficients<T, N>
+where
+    T: TransitionComponent,
+{
     type Storage = VecStorage<Self>;
 }
 
@@ -48,9 +60,14 @@ impl<T, const N: usize> Component for RateCoefficients<T, N> where T : Transitio
 ///
 /// It also ensures that the size of the `RateCoefficient` components match the number of CoolingLight entities in the world.
 #[derive(Default)]
-pub struct InitialiseRateCoefficientsSystem<T, const N: usize>(PhantomData<T>) where T : TransitionComponent;
+pub struct InitialiseRateCoefficientsSystem<T, const N: usize>(PhantomData<T>)
+where
+    T: TransitionComponent;
 
-impl<'a, T, const N: usize> System<'a> for InitialiseRateCoefficientsSystem<T, N> where T : TransitionComponent {
+impl<'a, T, const N: usize> System<'a> for InitialiseRateCoefficientsSystem<T, N>
+where
+    T: TransitionComponent,
+{
     type SystemData = (WriteStorage<'a, RateCoefficients<T, N>>,);
     fn run(&mut self, (mut rate_coefficients,): Self::SystemData) {
         use rayon::prelude::*;
@@ -72,9 +89,14 @@ impl<'a, T, const N: usize> System<'a> for InitialiseRateCoefficientsSystem<T, N
 /// The polarization is projected onto the quantization axis given by the local magnetic
 /// field vector. For fully polarized CoolingLight all projection pre-factors add up to 1.
 #[derive(Default)]
-pub struct CalculateRateCoefficientsSystem<T, const N: usize>(PhantomData<T>) where T : TransitionComponent;
+pub struct CalculateRateCoefficientsSystem<T, const N: usize>(PhantomData<T>)
+where
+    T: TransitionComponent;
 
-impl<'a, T, const N: usize> System<'a> for CalculateRateCoefficientsSystem<T, N> where T : TransitionComponent {
+impl<'a, T, const N: usize> System<'a> for CalculateRateCoefficientsSystem<T, N>
+where
+    T: TransitionComponent,
+{
     type SystemData = (
         ReadStorage<'a, CoolingLight>,
         ReadStorage<'a, LaserIndex>,
@@ -149,15 +171,15 @@ pub mod tests {
 
     use crate::laser::index::LaserIndex;
     use crate::laser::DEFAULT_BEAM_LIMIT;
-    use crate::laser_cooling::CoolingLight;
     use crate::laser_cooling::transition::AtomicTransition;
+    use crate::laser_cooling::CoolingLight;
     use crate::species::Strontium88_461;
     use assert_approx_eq::assert_approx_eq;
     extern crate nalgebra;
     use nalgebra::{Matrix3, Vector3};
 
-    use crate::laser::intensity::{LaserIntensitySamplers, LaserIntensitySampler};
-    use crate::laser_cooling::sampler::{LaserDetuningSamplers, LaserDetuningSampler};
+    use crate::laser::intensity::{LaserIntensitySampler, LaserIntensitySamplers};
+    use crate::laser_cooling::sampler::{LaserDetuningSampler, LaserDetuningSamplers};
     use crate::magnetic::MagneticFieldSampler;
 
     /// Tests the correct implementation of the `RateCoefficients`
@@ -210,8 +232,7 @@ pub mod tests {
                 contents: [lds; DEFAULT_BEAM_LIMIT],
             })
             .with(LaserIntensitySamplers {
-                contents: [LaserIntensitySampler { intensity };
-                    DEFAULT_BEAM_LIMIT],
+                contents: [LaserIntensitySampler { intensity }; DEFAULT_BEAM_LIMIT],
             })
             .with(Strontium88_461)
             .with(MagneticFieldSampler {
@@ -221,22 +242,25 @@ pub mod tests {
                 jacobian: Matrix3::zeros(),
             })
             .with(RateCoefficients {
-                contents: [RateCoefficient::<Strontium88_461>::default(); crate::laser::DEFAULT_BEAM_LIMIT],
+                contents: [RateCoefficient::<Strontium88_461>::default();
+                    crate::laser::DEFAULT_BEAM_LIMIT],
             })
             .build();
 
-        let mut system = CalculateRateCoefficientsSystem::<Strontium88_461, { DEFAULT_BEAM_LIMIT }>::default();
+        let mut system =
+            CalculateRateCoefficientsSystem::<Strontium88_461, { DEFAULT_BEAM_LIMIT }>::default();
         system.run_now(&test_world);
         test_world.maintain();
-        let sampler_storage = test_world.read_storage::<RateCoefficients<Strontium88_461, { DEFAULT_BEAM_LIMIT }>>();
+        let sampler_storage =
+            test_world.read_storage::<RateCoefficients<Strontium88_461, { DEFAULT_BEAM_LIMIT }>>();
 
         let man_pref = Strontium88_461::rate_prefactor() * intensity;
-        let scatter1 = 0.25 * man_pref
-            / (detuning.powf(2.0) + (Strontium88_461::gamma() / 2.).powf(2.0));
-        let scatter2 = 0.25 * man_pref
-            / (detuning.powf(2.0) + (Strontium88_461::gamma() / 2.).powf(2.0));
-        let scatter3 = 0.5 * man_pref
-            / (detuning.powf(2.) + (Strontium88_461::gamma() / 2.).powf(2.));
+        let scatter1 =
+            0.25 * man_pref / (detuning.powf(2.0) + (Strontium88_461::gamma() / 2.).powf(2.0));
+        let scatter2 =
+            0.25 * man_pref / (detuning.powf(2.0) + (Strontium88_461::gamma() / 2.).powf(2.0));
+        let scatter3 =
+            0.5 * man_pref / (detuning.powf(2.) + (Strontium88_461::gamma() / 2.).powf(2.));
 
         assert_approx_eq!(
             sampler_storage

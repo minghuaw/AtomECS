@@ -10,13 +10,13 @@ use super::frame::Frame;
 use super::gaussian::{get_gaussian_beam_intensity, CircularMask, GaussianBeam};
 use crate::atom::Position;
 use crate::laser::index::LaserIndex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 
 // const LASER_CACHE_SIZE: usize = 16;
 
 /// Represents the laser intensity at the position of the atom with respect to a certain laser beam
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct LaserIntensitySampler {
     /// Intensity in SI units of W/m^2
     pub intensity: f64,
@@ -32,7 +32,7 @@ impl Default for LaserIntensitySampler {
 }
 
 /// Component that holds a list of `LaserIntensitySamplers`
-#[derive(Copy, Clone, Serialize)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct LaserIntensitySamplers<const N: usize> {
     /// List of laser samplers
     #[serde(with = "serde_arrays")]

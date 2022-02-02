@@ -7,13 +7,13 @@ use super::CoolingLight;
 use crate::atom::Velocity;
 use crate::laser::gaussian::GaussianBeam;
 use crate::laser::index::LaserIndex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specs::{Component, Join, ReadStorage, System, VecStorage, WriteStorage};
 
 // const LASER_CACHE_SIZE: usize = 16;
 
 /// Represents the Dopplershift of the atom with respect to each beam due to the atom velocity
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct DopplerShiftSampler {
     /// detuning value in rad/s
     pub doppler_shift: f64,
@@ -79,7 +79,7 @@ impl<'a, const N: usize> System<'a> for CalculateDopplerShiftSystem<N> {
 ///
 /// Each list entry corresponds to the detuning with respect to a CoolingLight entity
 /// and is indext via `CoolingLightIndex`
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct DopplerShiftSamplers<const N: usize> {
     /// List of all `DopplerShiftSampler`s
     #[serde(with = "serde_arrays")]

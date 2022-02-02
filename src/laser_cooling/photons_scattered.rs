@@ -5,7 +5,7 @@ extern crate rayon;
 use rand;
 use rand_distr::{Distribution, Poisson};
 
-use crate::{integrator::Timestep};
+use crate::integrator::Timestep;
 use crate::laser::sampler::CoolingLaserSamplerMasks;
 use crate::laser_cooling::rate::RateCoefficients;
 use crate::laser_cooling::twolevel::TwoLevelPopulation;
@@ -14,31 +14,40 @@ use specs::prelude::*;
 use std::fmt;
 use std::marker::PhantomData;
 
-use super::transition::{TransitionComponent};
+use super::transition::TransitionComponent;
 
 /// Holds the total number of photons that the atom is expected to scatter
 /// in the current simulation step from all beams.
 ///
 /// This is an early estimation used to determine the more precise `ExpectedPhotonsScattered`
 /// afterwards.
-#[derive(Clone, Copy, Serialize)]
-pub struct TotalPhotonsScattered<T> where T : TransitionComponent {
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub struct TotalPhotonsScattered<T>
+where
+    T: TransitionComponent,
+{
     /// Number of photons scattered from all beams
     pub total: f64,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
 
-impl<T> Default for TotalPhotonsScattered<T> where T : TransitionComponent {
+impl<T> Default for TotalPhotonsScattered<T>
+where
+    T: TransitionComponent,
+{
     fn default() -> Self {
         TotalPhotonsScattered {
             /// Number of photons scattered from all beams
             total: f64::NAN,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
 
-impl<T> Component for TotalPhotonsScattered<T> where T : TransitionComponent + 'static {
+impl<T> Component for TotalPhotonsScattered<T>
+where
+    T: TransitionComponent + 'static,
+{
     type Storage = VecStorage<Self>;
 }
 
@@ -46,9 +55,13 @@ impl<T> Component for TotalPhotonsScattered<T> where T : TransitionComponent + '
 ///
 /// This can be calculated by: Timestep * TwolevelPopulation * Linewidth
 #[derive(Default)]
-pub struct CalculateMeanTotalPhotonsScatteredSystem<T>(PhantomData<T>) where T : TransitionComponent;
-impl<'a, T> System<'a> for CalculateMeanTotalPhotonsScatteredSystem<T> 
-where T: TransitionComponent {
+pub struct CalculateMeanTotalPhotonsScatteredSystem<T>(PhantomData<T>)
+where
+    T: TransitionComponent;
+impl<'a, T> System<'a> for CalculateMeanTotalPhotonsScatteredSystem<T>
+where
+    T: TransitionComponent,
+{
     type SystemData = (
         ReadExpect<'a, Timestep>,
         ReadStorage<'a, T>,
@@ -76,34 +89,49 @@ where T: TransitionComponent {
 
 /// The number of photons scattered by the atom from a single, specific beam
 #[derive(Clone, Copy, Serialize, Deserialize)]
-pub struct ExpectedPhotonsScattered<T> where T : TransitionComponent {
+pub struct ExpectedPhotonsScattered<T>
+where
+    T: TransitionComponent,
+{
     ///photons scattered by the atom from a specific beam
     scattered: f64,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
 
-impl<T> Default for ExpectedPhotonsScattered<T> where T : TransitionComponent {
+impl<T> Default for ExpectedPhotonsScattered<T>
+where
+    T: TransitionComponent,
+{
     fn default() -> Self {
         ExpectedPhotonsScattered {
             ///photons scattered by the atom from a specific beam
             scattered: f64::NAN,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
 
 /// The List that holds an `ExpectedPhotonsScattered` for each laser
 #[derive(Deserialize, Serialize, Clone)]
-pub struct ExpectedPhotonsScatteredVector<T, const N: usize> where T : TransitionComponent {
+pub struct ExpectedPhotonsScatteredVector<T, const N: usize>
+where
+    T: TransitionComponent,
+{
     #[serde(with = "serde_arrays")]
     pub contents: [ExpectedPhotonsScattered<T>; N],
 }
 
-impl<T, const N: usize> Component for ExpectedPhotonsScatteredVector<T, N> where T : TransitionComponent {
+impl<T, const N: usize> Component for ExpectedPhotonsScatteredVector<T, N>
+where
+    T: TransitionComponent,
+{
     type Storage = VecStorage<Self>;
 }
 
-impl<T, const N: usize> fmt::Display for ExpectedPhotonsScatteredVector<T, N> where T : TransitionComponent {
+impl<T, const N: usize> fmt::Display for ExpectedPhotonsScatteredVector<T, N>
+where
+    T: TransitionComponent,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut result = f.write_str("");
         for aps in &self.contents {
@@ -117,8 +145,13 @@ impl<T, const N: usize> fmt::Display for ExpectedPhotonsScatteredVector<T, N> wh
 ///
 /// It also ensures that the size of the ´ExpectedPhotonsScatteredVector´ components match the number of CoolingLight entities in the world.
 #[derive(Default)]
-pub struct InitialiseExpectedPhotonsScatteredVectorSystem<T, const N: usize>(PhantomData<T>) where T : TransitionComponent;
-impl<'a, T, const N: usize> System<'a> for InitialiseExpectedPhotonsScatteredVectorSystem<T, N> where T : TransitionComponent {
+pub struct InitialiseExpectedPhotonsScatteredVectorSystem<T, const N: usize>(PhantomData<T>)
+where
+    T: TransitionComponent;
+impl<'a, T, const N: usize> System<'a> for InitialiseExpectedPhotonsScatteredVectorSystem<T, N>
+where
+    T: TransitionComponent,
+{
     type SystemData = (WriteStorage<'a, ExpectedPhotonsScatteredVector<T, N>>,);
     fn run(&mut self, (mut expected_photons,): Self::SystemData) {
         use rayon::prelude::*;
@@ -134,8 +167,13 @@ impl<'a, T, const N: usize> System<'a> for InitialiseExpectedPhotonsScatteredVec
 /// It is required that the `TotalPhotonsScattered` is already updated since this System divides
 /// them between the CoolingLight entities.
 #[derive(Default)]
-pub struct CalculateExpectedPhotonsScatteredSystem<T, const N: usize>(PhantomData<T>) where T : TransitionComponent;
-impl<'a, T, const N: usize> System<'a> for CalculateExpectedPhotonsScatteredSystem<T, N> where T : TransitionComponent {
+pub struct CalculateExpectedPhotonsScatteredSystem<T, const N: usize>(PhantomData<T>)
+where
+    T: TransitionComponent;
+impl<'a, T, const N: usize> System<'a> for CalculateExpectedPhotonsScatteredSystem<T, N>
+where
+    T: TransitionComponent,
+{
     type SystemData = (
         ReadStorage<'a, RateCoefficients<T, N>>,
         ReadStorage<'a, TotalPhotonsScattered<T>>,
@@ -185,30 +223,42 @@ impl<'a, T, const N: usize> System<'a> for CalculateExpectedPhotonsScatteredSyst
 /// `ExpectedPhotonsScattered`. This adds an additional degree of randomness to
 /// the simulation that helps to recreate the recoil limit.  
 #[derive(Deserialize, Serialize, Clone, Copy)]
-pub struct ActualPhotonsScattered<T> where T : TransitionComponent {
+pub struct ActualPhotonsScattered<T>
+where
+    T: TransitionComponent,
+{
     ///  number of photons actually scattered by an atomic transition from a specific beam.
     pub scattered: f64,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
 
-impl<T> Default for ActualPhotonsScattered<T> where T : TransitionComponent {
+impl<T> Default for ActualPhotonsScattered<T>
+where
+    T: TransitionComponent,
+{
     fn default() -> Self {
         ActualPhotonsScattered {
             ///  number of photons actually scattered by the atom from a specific beam
             scattered: 0.0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
 
 /// The ist that holds an `ActualPhotonsScattered` for each CoolingLight entity
 #[derive(Deserialize, Serialize, Clone)]
-pub struct ActualPhotonsScatteredVector<T, const N: usize> where T : TransitionComponent {
+pub struct ActualPhotonsScatteredVector<T, const N: usize>
+where
+    T: TransitionComponent,
+{
     #[serde(with = "serde_arrays")]
     pub contents: [ActualPhotonsScattered<T>; N],
 }
 
-impl<T, const N: usize> ActualPhotonsScatteredVector<T, N> where T : TransitionComponent{
+impl<T, const N: usize> ActualPhotonsScatteredVector<T, N>
+where
+    T: TransitionComponent,
+{
     /// Calculate the sum of all entries
     pub fn calculate_total_scattered(&self) -> u64 {
         let mut sum: f64 = 0.0;
@@ -221,7 +271,10 @@ impl<T, const N: usize> ActualPhotonsScatteredVector<T, N> where T : TransitionC
         sum as u64
     }
 }
-impl<T, const N: usize> fmt::Display for ActualPhotonsScatteredVector<T, N> where T : TransitionComponent {
+impl<T, const N: usize> fmt::Display for ActualPhotonsScatteredVector<T, N>
+where
+    T: TransitionComponent,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut result = f.write_str("");
         for aps in &self.contents {
@@ -230,7 +283,10 @@ impl<T, const N: usize> fmt::Display for ActualPhotonsScatteredVector<T, N> wher
         result
     }
 }
-impl<T, const N: usize> Component for ActualPhotonsScatteredVector<T, N> where T : TransitionComponent + 'static {
+impl<T, const N: usize> Component for ActualPhotonsScatteredVector<T, N>
+where
+    T: TransitionComponent + 'static,
+{
     type Storage = VecStorage<Self>;
 }
 
@@ -252,9 +308,14 @@ impl Default for ScatteringFluctuationsOption {
 /// Calcutates the actual number of photons scattered by each CoolingLight entity in one iteration step
 /// by drawing from a Poisson Distribution that has `ExpectedPhotonsScattered` as the lambda parameter.
 #[derive(Default)]
-pub struct CalculateActualPhotonsScatteredSystem<T, const N: usize>(PhantomData<T>) where T : TransitionComponent;
+pub struct CalculateActualPhotonsScatteredSystem<T, const N: usize>(PhantomData<T>)
+where
+    T: TransitionComponent;
 
-impl<'a, T, const N: usize> System<'a> for CalculateActualPhotonsScatteredSystem<T, N> where T : TransitionComponent {
+impl<'a, T, const N: usize> System<'a> for CalculateActualPhotonsScatteredSystem<T, N>
+where
+    T: TransitionComponent,
+{
     type SystemData = (
         Option<Read<'a, ScatteringFluctuationsOption>>,
         ReadStorage<'a, ExpectedPhotonsScatteredVector<T, N>>,
@@ -313,7 +374,11 @@ impl<'a, T, const N: usize> System<'a> for CalculateActualPhotonsScatteredSystem
 #[cfg(test)]
 pub mod tests {
 
-    use crate::{laser::{DEFAULT_BEAM_LIMIT, sampler::LaserSamplerMask}, species::Strontium88_461, laser_cooling::{rate::RateCoefficient, transition::AtomicTransition}};
+    use crate::{
+        laser::{sampler::LaserSamplerMask, DEFAULT_BEAM_LIMIT},
+        laser_cooling::{rate::RateCoefficient, transition::AtomicTransition},
+        species::Strontium88_461,
+    };
 
     use super::*;
 
@@ -367,7 +432,8 @@ pub mod tests {
         test_world.register::<RateCoefficients<Strontium88_461, { DEFAULT_BEAM_LIMIT }>>();
         test_world.register::<CoolingLaserSamplerMasks<{ DEFAULT_BEAM_LIMIT }>>();
         test_world.register::<TotalPhotonsScattered<Strontium88_461>>();
-        test_world.register::<ExpectedPhotonsScatteredVector<Strontium88_461, { DEFAULT_BEAM_LIMIT }>>();
+        test_world
+            .register::<ExpectedPhotonsScatteredVector<Strontium88_461, { DEFAULT_BEAM_LIMIT }>>();
 
         //We assume 16 beams with equal `RateCoefficient`s for this test
         let mut rc = RateCoefficient::<Strontium88_461>::default();
@@ -379,17 +445,20 @@ pub mod tests {
             .create_entity()
             .with(tps)
             .with(CoolingLaserSamplerMasks {
-                contents: [LaserSamplerMask { filled: true };
-                    DEFAULT_BEAM_LIMIT],
+                contents: [LaserSamplerMask { filled: true }; DEFAULT_BEAM_LIMIT],
             })
             .with(RateCoefficients {
                 contents: [rc; DEFAULT_BEAM_LIMIT],
             })
             .with(ExpectedPhotonsScatteredVector {
-                contents: [ExpectedPhotonsScattered::<Strontium88_461>::default(); crate::laser::DEFAULT_BEAM_LIMIT],
+                contents: [ExpectedPhotonsScattered::<Strontium88_461>::default();
+                    crate::laser::DEFAULT_BEAM_LIMIT],
             })
             .build();
-        let mut system = CalculateExpectedPhotonsScatteredSystem::<Strontium88_461, { DEFAULT_BEAM_LIMIT }>::default();
+        let mut system = CalculateExpectedPhotonsScatteredSystem::<
+            Strontium88_461,
+            { DEFAULT_BEAM_LIMIT },
+        >::default();
         system.run_now(&test_world);
         test_world.maintain();
         let sampler_storage =
