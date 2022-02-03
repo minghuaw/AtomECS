@@ -8,6 +8,8 @@ extern crate nalgebra;
 use crate::atom::*;
 use crate::constant;
 use crate::initiate::NewlyCreated;
+use serde::Deserialize;
+use serde::Serialize;
 use specs::prelude::*;
 
 /// Tracks the number of the current integration step.
@@ -50,11 +52,11 @@ impl<'a> System<'a> for EulerIntegrationSystem {
         use rayon::prelude::*;
 
         step.n += 1;
-        (&mut vel, &mut pos, &force, &mass).par_join().for_each(
-            |(vel, pos, force, mass)| {
+        (&mut vel, &mut pos, &force, &mass)
+            .par_join()
+            .for_each(|(vel, pos, force, mass)| {
                 euler_update(vel, pos, force, mass, t.delta);
-            },
-        );
+            });
     }
 }
 
@@ -119,7 +121,8 @@ impl<'a> System<'a> for VelocityVerletIntegrateVelocitySystem {
 
         (&mut vel, &force, &old_force, &mass).par_join().for_each(
             |(vel, force, old_force, mass)| {
-                vel.vel += (force.force + old_force.0.force) / (constant::AMU * mass.value) / 2.0 * dt;
+                vel.vel +=
+                    (force.force + old_force.0.force) / (constant::AMU * mass.value) / 2.0 * dt;
             },
         );
     }
@@ -142,7 +145,7 @@ impl<'a> System<'a> for AddOldForceToNewAtomsSystem {
 }
 
 /// Stores the value of the force calculation from the previous frame.
-#[derive(Default)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct OldForce(Force);
 impl Component for OldForce {
     type Storage = VecStorage<OldForce>;
@@ -302,9 +305,7 @@ pub mod tests {
                 vel: Vector3::new(0.0, 0.0, 0.0),
             })
             .with(Force { force })
-            .with(OldForce {
-                0: Force { force },
-            })
+            .with(OldForce { 0: Force { force } })
             .with(Mass {
                 value: mass / constant::AMU,
             })
