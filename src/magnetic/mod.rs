@@ -2,6 +2,7 @@
 
 extern crate nalgebra;
 
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 
 use crate::integrator::INTEGRATE_POSITION_SYSTEM_NAME;
@@ -20,7 +21,7 @@ pub mod uniform;
 use std::fmt;
 
 /// A component that stores the magnetic field at an entity's location.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct MagneticFieldSampler {
     /// Vector representing the magnetic field components along x,y,z in units of Tesla.
     pub field: Vector3<f64>,

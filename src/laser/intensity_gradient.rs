@@ -2,6 +2,7 @@
 //!
 //! Gradients are currently only calculated for beams marked as [DipoleLight](DipoleLight.struct.html).
 
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 
 use crate::atom::Position;
@@ -13,7 +14,7 @@ use nalgebra::Vector3;
 use specs::{Component, Join, ReadStorage, System, VecStorage, WriteStorage};
 
 /// Represents the laser intensity at the position of the atom with respect to a certain laser beam
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct LaserIntensityGradientSampler {
     /// Intensity in SI units of W/m^2
     pub gradient: Vector3<f64>,
@@ -29,8 +30,10 @@ impl Default for LaserIntensityGradientSampler {
 }
 
 /// Component that holds a list of `LaserIntensityGradientSampler`s
+#[derive(Serialize, Deserialize)]
 pub struct LaserIntensityGradientSamplers<const N: usize> {
     /// List of laser gradient samplers
+    #[serde(with = "serde_arrays")]
     pub contents: [LaserIntensityGradientSampler; N],
 }
 
