@@ -89,6 +89,7 @@ impl<'a> System<'a> for VelocityVerletIntegratePositionSystem {
         (&mut pos, &vel, &mut old_force, &force, &mass)
             .par_join()
             .for_each(|(mut pos, vel, mut old_force, force, mass)| {
+                println!(">>> Debug: VelocityVerletIntegratePositionSystem");
                 pos.pos = pos.pos
                     + vel.vel * dt
                     + force.force / (constant::AMU * mass.value) / 2.0 * dt * dt;
@@ -121,6 +122,7 @@ impl<'a> System<'a> for VelocityVerletIntegrateVelocitySystem {
 
         (&mut vel, &force, &old_force, &mass).par_join().for_each(
             |(vel, force, old_force, mass)| {
+                println!(">>> Debug: VelocityVerletIntegrateVelocitySystem");
                 vel.vel +=
                     (force.force + old_force.0.force) / (constant::AMU * mass.value) / 2.0 * dt;
             },
@@ -139,6 +141,7 @@ impl<'a> System<'a> for AddOldForceToNewAtomsSystem {
     );
     fn run(&mut self, (ent, newly_created, old_force, updater): Self::SystemData) {
         for (ent, _, _) in (&ent, &newly_created, !&old_force).join() {
+            println!(">>> Debug: DeflagNewAtomsSystem");
             updater.insert(ent, OldForce::default());
         }
     }

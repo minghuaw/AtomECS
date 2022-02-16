@@ -41,6 +41,7 @@ impl<'a> System<'a> for DeflagNewAtomsSystem {
 
     fn run(&mut self, (ent, newly_created, updater): Self::SystemData) {
         for (ent, _newly_created) in (&ent, &newly_created).join() {
+            println!(">>> Debug: DeflagNewAtomsSystem");
             updater.remove::<NewlyCreated>(ent);
         }
     }

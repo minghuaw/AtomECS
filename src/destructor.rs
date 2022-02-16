@@ -7,7 +7,7 @@
 extern crate specs;
 use specs::prelude::*;
 
-use crate::{simulation::Plugin, integrator::{INTEGRATE_POSITION_SYSTEM_NAME}};
+use crate::{integrator::INTEGRATE_POSITION_SYSTEM_NAME, simulation::Plugin};
 
 /// A system that deletes entities which have been marked for destruction using the [ToBeDestroyed](struct.ToBeDestroyed.html) component.
 pub struct DeleteToBeDestroyedEntitiesSystem;
@@ -16,13 +16,15 @@ impl<'a> System<'a> for DeleteToBeDestroyedEntitiesSystem {
 
     fn run(&mut self, (ents, des): Self::SystemData) {
         for (entity, _) in (&ents, &des).join() {
+            println!(">>> Debug: DeleteToBeDestroyedEntitiesSystem");
+
             ents.delete(entity).expect("Could not delete entity");
         }
     }
 }
 
 /// This plugin implements removal of atoms marked as `ToBeDestroyed`.
-/// 
+///
 /// See also [crate::destructor].
 pub struct DestroyAtomsPlugin;
 impl Plugin for DestroyAtomsPlugin {
@@ -33,7 +35,7 @@ impl Plugin for DestroyAtomsPlugin {
             &[INTEGRATE_POSITION_SYSTEM_NAME],
         );
     }
-    fn deps(&self) -> Vec::<Box<dyn Plugin>> {
+    fn deps(&self) -> Vec<Box<dyn Plugin>> {
         Vec::new()
     }
 }

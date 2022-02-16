@@ -29,6 +29,8 @@ impl<'a, const N: usize> System<'a> for AttachLaserComponentsToNewlyCreatedAtoms
 
     fn run(&mut self, (ent, newly_created, updater): Self::SystemData) {
         for (ent, _) in (&ent, &newly_created).join() {
+            println!(">>> Debug: AttachLaserComponentsToNewlyCreatedAtomsSystem");
+
             updater.insert(
                 ent,
                 sampler::CoolingLaserSamplerMasks {
@@ -52,20 +54,20 @@ impl<'a, const N: usize> System<'a> for AttachLaserComponentsToNewlyCreatedAtoms
 }
 
 /// This plugin provides basic functionality for laser beams, such as calculating laser intensity.
-/// 
+///
 /// See [crate::laser] for more information.
-/// 
+///
 /// # Generic Arguments
-/// 
+///
 /// * `N`: The maximum number of laser beams to configure the simulation for.
-pub struct LaserPlugin<const N : usize>;
-impl<const N : usize> Plugin for LaserPlugin<N> {
+pub struct LaserPlugin<const N: usize>;
+impl<const N: usize> Plugin for LaserPlugin<N> {
     fn build(&self, builder: &mut crate::simulation::SimulationBuilder) {
         register_components(&mut builder.world);
         add_systems_to_dispatch::<N>(&mut builder.dispatcher_builder, &[]);
     }
 
-    fn deps(&self) -> Vec::<Box<dyn Plugin>> {
+    fn deps(&self) -> Vec<Box<dyn Plugin>> {
         Vec::new()
     }
 }

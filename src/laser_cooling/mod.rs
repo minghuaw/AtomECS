@@ -2,12 +2,12 @@
 
 use std::marker::PhantomData;
 
-use crate::laser::LaserPlugin;
-use crate::{constant, simulation::Plugin};
 use crate::initiate::NewlyCreated;
 use crate::integrator::INTEGRATE_POSITION_SYSTEM_NAME;
 use crate::laser::index::LaserIndex;
+use crate::laser::LaserPlugin;
 use crate::ramp::Lerp;
+use crate::{constant, simulation::Plugin};
 use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use transition::AtomicTransition;
@@ -20,8 +20,8 @@ pub mod photons_scattered;
 pub mod rate;
 pub mod repump;
 pub mod sampler;
-pub mod twolevel;
 pub mod transition;
+pub mod twolevel;
 pub mod zeeman;
 
 /// A component representing light properties used for laser cooling.
@@ -75,7 +75,10 @@ impl CoolingLight {
     /// * `detuning`: Detuning of the laser from transition in units of MHz
     ///
     /// * `polarization`: Polarization of the cooling beam.
-    pub fn for_transition<T>(detuning: f64, polarization: i32) -> Self where T : AtomicTransition {
+    pub fn for_transition<T>(detuning: f64, polarization: i32) -> Self
+    where
+        T: AtomicTransition,
+    {
         let freq = T::frequency() + detuning * 1.0e6;
         CoolingLight {
             wavelength: constant::C / freq,
@@ -92,9 +95,24 @@ impl Component for CoolingLight {
 /// They are recognized as newly created if they are associated with
 /// the `NewlyCreated` component.
 #[derive(Default)]
-pub struct AttachLaserCoolingComponentsToNewlyCreatedAtomsSystem<T, const N: usize>(PhantomData<T>) where T : TransitionComponent;
+pub struct AttachLaserCoolingComponentsToNewlyCreatedAtomsSystem<T, const N: usize>(PhantomData<T>)
+where
+    T: TransitionComponent;
 
-impl<'a, T, const N: usize> System<'a> for AttachLaserCoolingComponentsToNewlyCreatedAtomsSystem<T, N> where T : TransitionComponent {
+impl<T, const N: usize> AttachLaserCoolingComponentsToNewlyCreatedAtomsSystem<T, N>
+where
+    T: TransitionComponent,
+{
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<'a, T, const N: usize> System<'a>
+    for AttachLaserCoolingComponentsToNewlyCreatedAtomsSystem<T, N>
+where
+    T: TransitionComponent,
+{
     type SystemData = (
         Entities<'a>,
         ReadStorage<'a, NewlyCreated>,
@@ -111,7 +129,7 @@ impl<'a, T, const N: usize> System<'a> for AttachLaserCoolingComponentsToNewlyCr
             );
             updater.insert(
                 ent,
-                sampler::LaserDetuningSamplers::<T,N> {
+                sampler::LaserDetuningSamplers::<T, N> {
                     contents: [sampler::LaserDetuningSampler::default(); N],
                 },
             );
@@ -122,16 +140,19 @@ impl<'a, T, const N: usize> System<'a> for AttachLaserCoolingComponentsToNewlyCr
                 },
             );
             updater.insert(ent, twolevel::TwoLevelPopulation::<T>::default());
-            updater.insert(ent, photons_scattered::TotalPhotonsScattered::<T>::default());
             updater.insert(
                 ent,
-                photons_scattered::ExpectedPhotonsScatteredVector::<T,N> {
+                photons_scattered::TotalPhotonsScattered::<T>::default(),
+            );
+            updater.insert(
+                ent,
+                photons_scattered::ExpectedPhotonsScatteredVector::<T, N> {
                     contents: [photons_scattered::ExpectedPhotonsScattered::default(); N],
                 },
             );
             updater.insert(
                 ent,
-                photons_scattered::ActualPhotonsScatteredVector::<T,N> {
+                photons_scattered::ActualPhotonsScatteredVector::<T, N> {
                     contents: [photons_scattered::ActualPhotonsScattered::default(); N],
                 },
             );
@@ -157,23 +178,28 @@ impl<'a> System<'a> for AttachIndexToCoolingLightSystem {
 }
 
 /// This plugin performs simulations of laser cooling using a two-level rate equation approach.
-/// 
+///
 /// For more information see [crate::laser_cooling].
-/// 
+///
 /// # Generic Arguments
-/// 
+///
 /// * `T`: The laser cooling transition to solve the two-level system for.
-/// 
+///
 /// * `N`: The maximum number of laser beams (must match the `LaserPlugin`).
 #[derive(Default)]
-pub struct LaserCoolingPlugin<T, const N : usize>(PhantomData<T>) where T : TransitionComponent;
-impl<T, const N : usize> Plugin for LaserCoolingPlugin<T, N> where T : TransitionComponent {
+pub struct LaserCoolingPlugin<T, const N: usize>(PhantomData<T>)
+where
+    T: TransitionComponent;
+impl<T, const N: usize> Plugin for LaserCoolingPlugin<T, N>
+where
+    T: TransitionComponent,
+{
     fn build(&self, builder: &mut crate::simulation::SimulationBuilder) {
         add_systems_to_dispatch::<T, N>(&mut builder.dispatcher_builder, &[]);
     }
 
-    fn deps(&self) -> Vec::<Box<dyn Plugin>> {
-        vec![Box::new(LaserPlugin::<{N}>)]
+    fn deps(&self) -> Vec<Box<dyn Plugin>> {
+        vec![Box::new(LaserPlugin::<{ N }>)]
     }
 }
 
@@ -187,7 +213,9 @@ impl<T, const N : usize> Plugin for LaserCoolingPlugin<T, N> where T : Transitio
 fn add_systems_to_dispatch<T, const N: usize>(
     builder: &mut DispatcherBuilder<'static, 'static>,
     deps: &[&str],
-)  where T : TransitionComponent {
+) where
+    T: TransitionComponent,
+{
     builder.add(
         AttachLaserCoolingComponentsToNewlyCreatedAtomsSystem::<T, N>::default(),
         "attach_laser_cooling_components",
@@ -243,7 +271,7 @@ fn add_systems_to_dispatch<T, const N: usize>(
         ],
     );
     builder.add(
-        photons_scattered::CalculateActualPhotonsScatteredSystem::<T,N>::default(),
+        photons_scattered::CalculateActualPhotonsScatteredSystem::<T, N>::default(),
         "calculate_actual_photons",
         &["calculate_expected_photons"],
     );

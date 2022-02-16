@@ -55,6 +55,15 @@ pub struct AttachZeemanShiftSamplersToNewlyCreatedAtomsSystem<T>(PhantomData<T>)
 where
     T: TransitionComponent;
 
+impl<T> AttachZeemanShiftSamplersToNewlyCreatedAtomsSystem<T>
+where
+    T: TransitionComponent,
+{
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+
 impl<'a, T> System<'a> for AttachZeemanShiftSamplersToNewlyCreatedAtomsSystem<T>
 where
     T: TransitionComponent,
@@ -62,11 +71,12 @@ where
     type SystemData = (
         Entities<'a>,
         ReadStorage<'a, NewlyCreated>,
+        ReadStorage<'a, ZeemanShiftSampler<T>>,
         ReadStorage<'a, T>,
         Read<'a, LazyUpdate>,
     );
-    fn run(&mut self, (ent, newly_created, transition, updater): Self::SystemData) {
-        for (ent, _nc, _at) in (&ent, &newly_created, &transition).join() {
+    fn run(&mut self, (ent, newly_created, sampler, transition, updater): Self::SystemData) {
+        for (ent, _nc, _, _at) in (&ent, &newly_created, !&sampler, &transition).join() {
             updater.insert(ent, ZeemanShiftSampler::<T>::default());
         }
     }

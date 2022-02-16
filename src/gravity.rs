@@ -22,21 +22,22 @@ impl<'a> System<'a> for ApplyGravitationalForceSystem {
     fn run(&mut self, (mut force, mass, gravity_option): Self::SystemData) {
         use rayon::prelude::*;
 
+        println!(">>> Debug: ApplyGravitationalForceSystem");
+
         match gravity_option {
             None => (),
             Some(_) => {
-                (&mut force, &mass)
-                    .par_join()
-                    .for_each(|(force, mass)| {
-                        force.force += mass.value * constant::AMU * constant::GC * Vector3::new(0., 0., -1.);
-                    });
+                (&mut force, &mass).par_join().for_each(|(force, mass)| {
+                    force.force +=
+                        mass.value * constant::AMU * constant::GC * Vector3::new(0., 0., -1.);
+                });
             }
         }
     }
 }
 
 /// This plugin implements the force of gravity.
-/// 
+///
 /// See also [crate::gravity].
 pub struct GravityPlugin;
 impl Plugin for GravityPlugin {
@@ -45,9 +46,9 @@ impl Plugin for GravityPlugin {
             ApplyGravitationalForceSystem,
             "add_gravity",
             &["clear", INTEGRATE_POSITION_SYSTEM_NAME],
-        );  
+        );
     }
-    fn deps(&self) -> Vec::<Box<dyn Plugin>> {
+    fn deps(&self) -> Vec<Box<dyn Plugin>> {
         Vec::new()
     }
 }

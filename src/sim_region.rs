@@ -72,6 +72,8 @@ where
 
     fn run(&mut self, (volumes, sim_volumes, mut test_results, positions): Self::SystemData) {
         for (volume, sim_volume, vol_pos) in (&volumes, &sim_volumes, &positions).join() {
+            println!(">>> Debug: RegionTestSystem");
+
             for (result, pos) in (&mut test_results, &positions).join() {
                 match result.result {
                     Result::Reject => (),
@@ -106,6 +108,7 @@ impl<'a> System<'a> for ClearRegionTestSystem {
 
     fn run(&mut self, mut tests: Self::SystemData) {
         for test in (&mut tests).join() {
+            println!(">>> Debug: ClearRegionTestSystem");
             test.result = Result::Untested;
         }
     }
@@ -119,6 +122,8 @@ impl<'a> System<'a> for DeleteFailedRegionTestsSystem {
 
     fn run(&mut self, (ents, tests): Self::SystemData) {
         for (entity, test) in (&ents, &tests).join() {
+            println!(">>> Debug: DeleteFailedRegionTestsSystem");
+
             match test.result {
                 Result::Reject | Result::Failed => {
                     ents.delete(entity).expect("Could not delete entity")
@@ -131,7 +136,7 @@ impl<'a> System<'a> for DeleteFailedRegionTestsSystem {
 
 /// This sytem attaches [RegionTest](struct.RegionTest.html) components
 /// to all entities that are [NewlyCreated](struct.NewlyCreated.html).
-struct AttachRegionTestsToNewlyCreatedSystem;
+pub struct AttachRegionTestsToNewlyCreatedSystem;
 impl<'a> System<'a> for AttachRegionTestsToNewlyCreatedSystem {
     type SystemData = (
         Entities<'a>,
@@ -140,6 +145,8 @@ impl<'a> System<'a> for AttachRegionTestsToNewlyCreatedSystem {
     );
     fn run(&mut self, (ent, newly_created, updater): Self::SystemData) {
         for (ent, _nc) in (&ent, &newly_created).join() {
+            println!(">>> Debug: AttachRegionTestsToNewlyCreatedSystem");
+
             updater.insert(
                 ent,
                 RegionTest {
@@ -151,7 +158,7 @@ impl<'a> System<'a> for AttachRegionTestsToNewlyCreatedSystem {
 }
 
 /// This plugin implements simulation bounds, and the removal of atoms which leave them.
-/// 
+///
 /// See also [crate::sim_region]
 #[derive(Default)]
 pub struct SimulationRegionPlugin;
@@ -160,7 +167,7 @@ impl Plugin for SimulationRegionPlugin {
         add_systems_to_dispatch(&mut builder.dispatcher_builder, &[]);
         register_components(&mut builder.world);
     }
-    fn deps(&self) -> Vec::<Box<dyn Plugin>> {
+    fn deps(&self) -> Vec<Box<dyn Plugin>> {
         Vec::new()
     }
 }
@@ -172,10 +179,7 @@ impl Plugin for SimulationRegionPlugin {
 /// `builder`: the dispatch builder to modify
 ///
 /// `deps`: any dependencies that must be completed before the `sim_region` systems run.
-fn add_systems_to_dispatch(
-    builder: &mut DispatcherBuilder<'static, 'static>,
-    deps: &[&str],
-) {
+fn add_systems_to_dispatch(builder: &mut DispatcherBuilder<'static, 'static>, deps: &[&str]) {
     builder.add(ClearRegionTestSystem, "clear_region_test", deps);
     builder.add(
         RegionTestSystem::<Sphere> {
@@ -325,9 +329,7 @@ pub mod tests {
         test_world
             .create_entity()
             .with(Position { pos: cuboid_pos })
-            .with(Cuboid {
-                half_width,
-            })
+            .with(Cuboid { half_width })
             .with(SimulationVolume {
                 volume_type: VolumeType::Inclusive,
             })

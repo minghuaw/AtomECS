@@ -146,6 +146,7 @@ impl<'a> System<'a> for ClearForceSystem {
         use rayon::prelude::*;
 
         (&mut force).par_join().for_each(|force| {
+            println!(">>> Debug: ClearForceSystem");
             force.force = Vector3::new(0.0, 0.0, 0.0);
         });
     }
