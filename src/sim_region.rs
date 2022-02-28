@@ -72,7 +72,7 @@ where
 
     fn run(&mut self, (volumes, sim_volumes, mut test_results, positions): Self::SystemData) {
         for (volume, sim_volume, vol_pos) in (&volumes, &sim_volumes, &positions).join() {
-            println!(">>> Debug: RegionTestSystem");
+            // println!(">>> Debug: RegionTestSystem");
 
             for (result, pos) in (&mut test_results, &positions).join() {
                 match result.result {
@@ -108,7 +108,7 @@ impl<'a> System<'a> for ClearRegionTestSystem {
 
     fn run(&mut self, mut tests: Self::SystemData) {
         for test in (&mut tests).join() {
-            println!(">>> Debug: ClearRegionTestSystem");
+            // println!(">>> Debug: ClearRegionTestSystem");
             test.result = Result::Untested;
         }
     }
@@ -122,7 +122,7 @@ impl<'a> System<'a> for DeleteFailedRegionTestsSystem {
 
     fn run(&mut self, (ents, tests): Self::SystemData) {
         for (entity, test) in (&ents, &tests).join() {
-            println!(">>> Debug: DeleteFailedRegionTestsSystem");
+            // println!(">>> Debug: DeleteFailedRegionTestsSystem");
 
             match test.result {
                 Result::Reject | Result::Failed => {
@@ -145,7 +145,7 @@ impl<'a> System<'a> for AttachRegionTestsToNewlyCreatedSystem {
     );
     fn run(&mut self, (ent, newly_created, updater): Self::SystemData) {
         for (ent, _nc) in (&ent, &newly_created).join() {
-            println!(">>> Debug: AttachRegionTestsToNewlyCreatedSystem");
+            // println!(">>> Debug: AttachRegionTestsToNewlyCreatedSystem");
 
             updater.insert(
                 ent,

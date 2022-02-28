@@ -73,49 +73,47 @@ impl<'a> System<'a> for Sample3DQuadrupoleFieldSystem {
         use specs::ParJoin;
 
         for (centre, quadrupole) in (&pos, &quadrupole).join() {
-            (&pos, &mut sampler)
-                .par_join()
-                .for_each(|(pos, sampler)| {
-                    let quad_field = Sample3DQuadrupoleFieldSystem::calculate_field(
-                        pos.pos,
+            (&pos, &mut sampler).par_join().for_each(|(pos, sampler)| {
+                let quad_field = Sample3DQuadrupoleFieldSystem::calculate_field(
+                    pos.pos,
+                    centre.pos,
+                    quadrupole.gradient,
+                    quadrupole.direction,
+                );
+                sampler.field += quad_field;
+
+                // calculate local jacobian for magnetic field gradient
+                let mut jacobian = Matrix3::<f64>::zeros();
+                let delta = 1e-9; // Is there a better way to choose this number?
+                                  // Strictly speaking to be accurate it depends on the length scale over which
+                                  // the magnetic field changes
+                for i in 0..3 {
+                    let mut pos_plus_dr = pos.pos;
+                    let mut pos_minus_dr = pos.pos;
+                    pos_plus_dr[i] += delta;
+                    pos_minus_dr[i] -= delta;
+
+                    let b_plus_dr = Sample3DQuadrupoleFieldSystem::calculate_field(
+                        pos_plus_dr,
                         centre.pos,
                         quadrupole.gradient,
                         quadrupole.direction,
                     );
-                    sampler.field += quad_field;
+                    let b_minus_dr = Sample3DQuadrupoleFieldSystem::calculate_field(
+                        pos_minus_dr,
+                        centre.pos,
+                        quadrupole.gradient,
+                        quadrupole.direction,
+                    );
 
-                    // calculate local jacobian for magnetic field gradient
-                    let mut jacobian = Matrix3::<f64>::zeros();
-                    let delta = 1e-9; // Is there a better way to choose this number?
-                                      // Strictly speaking to be accurate it depends on the length scale over which
-                                      // the magnetic field changes
-                    for i in 0..3 {
-                        let mut pos_plus_dr = pos.pos;
-                        let mut pos_minus_dr = pos.pos;
-                        pos_plus_dr[i] += delta;
-                        pos_minus_dr[i] -= delta;
+                    let grad_plus = (b_plus_dr - quad_field) / delta;
+                    let grad_minus = (quad_field - b_minus_dr) / delta;
+                    let gradient = (grad_plus + grad_minus) / 2.0;
 
-                        let b_plus_dr = Sample3DQuadrupoleFieldSystem::calculate_field(
-                            pos_plus_dr,
-                            centre.pos,
-                            quadrupole.gradient,
-                            quadrupole.direction,
-                        );
-                        let b_minus_dr = Sample3DQuadrupoleFieldSystem::calculate_field(
-                            pos_minus_dr,
-                            centre.pos,
-                            quadrupole.gradient,
-                            quadrupole.direction,
-                        );
-
-                        let grad_plus = (b_plus_dr - quad_field) / delta;
-                        let grad_minus = (quad_field - b_minus_dr) / delta;
-                        let gradient = (grad_plus + grad_minus) / 2.0;
-
-                        jacobian.set_column(i, &gradient);
-                    }
-                    sampler.jacobian += jacobian;
-                });
+                    jacobian.set_column(i, &gradient);
+                }
+                sampler.jacobian += jacobian;
+            });
         }
     }
 }

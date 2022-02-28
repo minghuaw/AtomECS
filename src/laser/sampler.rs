@@ -32,7 +32,7 @@ impl<'a, const N: usize> System<'a> for InitialiseLaserSamplerMasksSystem<N> {
         use rayon::prelude::*;
 
         (&mut masks).par_join().for_each(|mask| {
-            println!(">>> Debug: AttachLaserComponentsToNewlyCreatedAtomsSystem");
+            // println!(">>> Debug: AttachLaserComponentsToNewlyCreatedAtomsSystem");
 
             mask.contents = [LaserSamplerMask::default(); N];
         });
@@ -53,7 +53,7 @@ impl<'a, const N: usize> System<'a> for FillLaserSamplerMasksSystem<N> {
 
         for (light_index, _) in (&light_index, &cooling).join() {
             (&mut masks).par_join().for_each(|masks| {
-                println!(">>> Debug: FillLaserSamplerMasksSystem");
+                // println!(">>> Debug: FillLaserSamplerMasksSystem");
 
                 masks.contents[light_index.index] = LaserSamplerMask { filled: true };
             });
