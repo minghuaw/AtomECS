@@ -54,8 +54,6 @@ impl<'a, const N: usize> System<'a> for InitialiseLaserIntensitySamplersSystem<N
         use rayon::prelude::*;
 
         (&mut samplers).par_join().for_each(|mut sampler| {
-            // println!(">>> Debug: InitialiseLaserIntensitySamplersSystem");
-
             sampler.contents = [LaserIntensitySampler::default(); N];
         });
     }
@@ -85,8 +83,6 @@ impl<'a, const N: usize> System<'a> for SampleLaserIntensitySystem<N> {
         (entities, indices, gaussian, masks, frames, position, mut intensity_samplers): Self::SystemData,
     ) {
         use rayon::prelude::*;
-
-        // println!(">>> Debug: SampleLaserIntensitySystem");
 
         // There are typically only a small number of lasers in a simulation.
         // For a speedup, cache the required components into thread memory,

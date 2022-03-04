@@ -22,8 +22,6 @@ impl<'a> System<'a> for ApplyGravitationalForceSystem {
     fn run(&mut self, (mut force, mass, gravity_option): Self::SystemData) {
         use rayon::prelude::*;
 
-        // println!(">>> Debug: ApplyGravitationalForceSystem");
-
         match gravity_option {
             None => (),
             Some(_) => {

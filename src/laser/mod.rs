@@ -29,8 +29,6 @@ impl<'a, const N: usize> System<'a> for AttachLaserComponentsToNewlyCreatedAtoms
 
     fn run(&mut self, (ent, newly_created, updater): Self::SystemData) {
         for (ent, _) in (&ent, &newly_created).join() {
-            println!(">>> Debug: AttachLaserComponentsToNewlyCreatedAtomsSystem");
-
             updater.insert(
                 ent,
                 sampler::CoolingLaserSamplerMasks {

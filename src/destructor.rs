@@ -16,8 +16,6 @@ impl<'a> System<'a> for DeleteToBeDestroyedEntitiesSystem {
 
     fn run(&mut self, (ents, des): Self::SystemData) {
         for (entity, _) in (&ents, &des).join() {
-            // println!(">>> Debug: DeleteToBeDestroyedEntitiesSystem");
-
             ents.delete(entity).expect("Could not delete entity");
         }
     }

@@ -70,8 +70,6 @@ impl<'a, const N: usize> System<'a> for SampleGaussianLaserIntensityGradientSyst
             (&dipole, &index, &gaussian, &reference_frame).join()
         {
             (&pos, &mut sampler).par_join().for_each(|(pos, sampler)| {
-                println!(">>> Debug: SampleGaussianLaserIntensityGradientSystem");
-
                 sampler.contents[index.index].gradient =
                     get_gaussian_beam_intensity_gradient(beam, pos, reference);
             });

@@ -78,8 +78,6 @@ impl<'a> System<'a> for ClearMagneticFieldSamplerSystem {
         use rayon::prelude::*;
 
         (&mut sampler).par_join().for_each(|mut sampler| {
-            // println!(">>> Debug: ClearMagneticFieldSamplerSystem");
-
             sampler.magnitude = 0.;
             sampler.field = Vector3::new(0.0, 0.0, 0.0);
             sampler.gradient = Vector3::new(0.0, 0.0, 0.0);
@@ -100,8 +98,6 @@ impl<'a> System<'a> for CalculateMagneticFieldMagnitudeSystem {
         use rayon::prelude::*;
 
         (&mut sampler).par_join().for_each(|mut sampler| {
-            // println!(">>> Debug: CalculateMagneticFieldMagnitudeSystem");
-
             sampler.magnitude = sampler.field.norm();
             if sampler.magnitude.is_nan() {
                 sampler.magnitude = 0.0;
@@ -121,8 +117,6 @@ impl<'a> System<'a> for CalculateMagneticMagnitudeGradientSystem {
         use rayon::prelude::*;
 
         (&mut sampler).par_join().for_each(|mut sampler| {
-            // println!(">>> Debug: CalculateMagneticMagnitudeGradientSystem");
-
             let mut gradient = Vector3::new(0.0, 0.0, 0.0);
             for i in 0..3 {
                 gradient[i] =
@@ -146,7 +140,6 @@ impl<'a> System<'a> for AttachFieldSamplersToNewlyCreatedAtomsSystem {
     );
     fn run(&mut self, (ent, newly_created, sampler, updater): Self::SystemData) {
         for (ent, _nc, _) in (&ent, &newly_created, !&sampler).join() {
-            // println!(">>> Debug: AttachFieldSamplersToNewlyCreatedAtomsSystem");
             updater.insert(ent, MagneticFieldSampler::default());
         }
     }
