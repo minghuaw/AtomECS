@@ -26,8 +26,8 @@ serde = {version = "1.0", features = ["derive"]}
 serde_arrays = "0.1.0"
 serde_json = "1.0"
 serde_yaml = "0.8.9"
-# specs = {git = "https://github.com/minghuaw/specs", branch = "u128_hibitset", features = ["rayon"]}
-specs = {git = "https://gitee.com/minghuaw/specs", branch = "u128_hibitset", features = ["rayon"]}
+# specs = {git = "https://github.com/minghuaw/specs", branch = "u32max_hibitset", features = ["rayon"]}
+specs = {git = "https://gitee.com/minghuaw/specs", branch = "u32max_hibitset", features = ["rayon"]}
 specs-derive = "0.4.1"
 
 [dev-dependencies]
