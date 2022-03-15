@@ -106,8 +106,8 @@ impl SimulationBuilder {
                 // No deps specified now - implicit in the barrier.
             ],
         );
-        self.dispatcher_builder
-            .add(ConsoleOutputSystem, "", &[INTEGRATE_VELOCITY_SYSTEM_NAME]);
+        // self.dispatcher_builder
+        //     .add(ConsoleOutputSystem, "", &[INTEGRATE_VELOCITY_SYSTEM_NAME]);
         self.end_frame_systems_added = true;
     }
 }
