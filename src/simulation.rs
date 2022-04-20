@@ -34,8 +34,8 @@ impl Simulation {
 pub struct SimulationBuilder {
     pub world: World,
     pub dispatcher_builder: DispatcherBuilder<'static, 'static>,
-    end_frame_systems_added: bool,
-    plugins: Vec<Box<dyn Plugin>>,
+    pub end_frame_systems_added: bool,
+    pub plugins: Vec<Box<dyn Plugin>>,
 }
 impl SimulationBuilder {
     pub fn new() -> Self {
