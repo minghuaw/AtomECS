@@ -257,10 +257,10 @@ impl Plugin for MagneticTrapPlugin {
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
-    use crate::atom::Position;
-    use crate::magnetic::quadrupole::{QuadrupoleField3D, Sample3DQuadrupoleFieldSystem};
-    use assert_approx_eq::assert_approx_eq;
+	use super::*;
+	use crate::atom::Position;
+	use crate::magnetic::quadrupole::{QuadrupoleField3D, Sample3DQuadrupoleFieldSystem};
+	use assert_approx_eq::assert_approx_eq;
 
     #[test]
     fn test_magnetics_systems() {

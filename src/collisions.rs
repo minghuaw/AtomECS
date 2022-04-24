@@ -17,6 +17,7 @@ use crate::atom::{Position, Velocity};
 use crate::constant::{PI, SQRT2};
 use crate::integrator::{Timestep, INTEGRATE_VELOCITY_SYSTEM_NAME};
 use crate::simulation::{Plugin, SimulationBuilder};
+use crate::partition::PartitionParameters;
 use hashbrown::HashMap;
 use nalgebra::Vector3;
 use rand::Rng;
@@ -64,10 +65,15 @@ impl Default for CollisionBox<'_> {
 
 impl CollisionBox<'_> {
     /// Perform collisions within a box.
-    fn do_collisions(&mut self, params: CollisionParameters, dt: f64) {
+    fn do_collisions(
+        &mut self,
+        collision_params: CollisionParameters,
+        partition_params: PartitionParameters,
+        dt: f64,
+    ) {
         let mut rng = rand::thread_rng();
         self.particle_number = self.velocities.len() as i32;
-        self.atom_number = self.particle_number as f64 * params.macroparticle;
+        self.atom_number = self.particle_number as f64 * collision_params.macroparticle;
 
         // Only one atom or less in box - no collisions.
         if self.particle_number <= 1 {
@@ -86,14 +92,18 @@ impl CollisionBox<'_> {
         // probability of one particle colliding is n*sigma*vrel*dt where n is the atom density, sigma cross section and vrel the average relative velocity
         // vrel = SQRT(2)*vbar, and since we assume these are identical particles we must divide by two since otherwise we count each collision twice
         // so total number of collisions is N_particles * probability = N_p*n*sigma*vbar*dt/SQRT(2)
-        let density = self.atom_number / params.box_width.powi(3);
-        self.expected_collision_number =
-            self.particle_number as f64 * density * params.sigma * vbar * dt * (1.0 / SQRT2);
+        let density = self.atom_number / partition_params.box_width.powi(3);
+        self.expected_collision_number = self.particle_number as f64
+            * density
+            * collision_params.sigma
+            * vbar
+            * dt
+            * (1.0 / SQRT2);
 
         let mut num_collisions_left: f64 = self.expected_collision_number;
 
-        if num_collisions_left > params.collision_limit {
-            panic!("Number of collisions in a box in a single frame exceeds limit. Number of collisions={}, limit={}, particles={}.", num_collisions_left, params.collision_limit, self.particle_number);
+        if num_collisions_left > collision_params.collision_limit {
+            panic!("Number of collisions in a box in a single frame exceeds limit. Number of collisions={}, limit={}, particles={}.", num_collisions_left, collision_params.collision_limit, self.particle_number);
         }
 
         while num_collisions_left > 0.0 {
@@ -129,10 +139,6 @@ impl CollisionBox<'_> {
 pub struct CollisionParameters {
     /// number of real particles one simulation particle represents for collisions
     pub macroparticle: f64,
-    /// number of boxes per side in spatial binning
-    pub box_number: i64,
-    /// width of one box in m
-    pub box_width: f64,
     // collisional cross section of atoms (assuming only one species)
     pub sigma: f64,
     /// Limit on number of collisions per box each frame. If the number of collisions to calculate exceeds this, the simulation will panic.
@@ -163,6 +169,7 @@ impl<'a> System<'a> for ApplyCollisionsSystem {
         WriteStorage<'a, BoxID>,
         Read<'a, LazyUpdate>,
         ReadExpect<'a, CollisionParameters>,
+        ReadExpect<'a, PartitionParameters>,
         WriteExpect<'a, CollisionsTracker>,
     );
 
@@ -177,7 +184,8 @@ impl<'a> System<'a> for ApplyCollisionsSystem {
             entities,
             mut boxids,
             updater,
-            params,
+            collision_params,
+            partition_params,
             mut tracker,
         ): Self::SystemData,
     ) {
@@ -188,7 +196,7 @@ impl<'a> System<'a> for ApplyCollisionsSystem {
             None => (),
             Some(_) => {
                 //make hash table - dividing space up into grid
-                let n: i64 = params.box_number; // number of boxes per side
+                let n: i64 = partition_params.box_number; // number of boxes per side
 
                 // Get all atoms which do not have boxIDs
                 for (entity, _, _) in (&entities, &atoms, !&boxids).join() {
@@ -199,7 +207,7 @@ impl<'a> System<'a> for ApplyCollisionsSystem {
                 (&positions, &mut boxids)
                     .par_join()
                     .for_each(|(position, mut boxid)| {
-                        boxid.id = pos_to_id(position.pos, n, params.box_width);
+                        boxid.id = pos_to_id(position.pos, n, partition_params.box_width);
                     });
 
                 //insert atom velocity into hash
@@ -216,7 +224,7 @@ impl<'a> System<'a> for ApplyCollisionsSystem {
                 // (Note that using hashmap parallel values mut does not work in parallel, tested.)
                 let boxes: Vec<&mut CollisionBox> = map.values_mut().collect();
                 boxes.into_par_iter().for_each(|collision_box| {
-                    collision_box.do_collisions(*params, t.delta);
+                    collision_box.do_collisions(*collision_params, *partition_params, t.delta);
                 });
 
                 tracker.num_atoms = map
@@ -320,36 +328,6 @@ pub mod tests {
     extern crate specs;
 
     #[test]
-    fn test_pos_to_id() {
-        let n: i64 = 10;
-        let width: f64 = 2.0;
-
-        let pos1 = Vector3::new(0.0, 0.0, 0.0);
-        let pos2 = Vector3::new(1.0, 0.0, 0.0);
-        let pos3 = Vector3::new(2.0, 0.0, 0.0);
-        let pos4 = Vector3::new(9.9, 0.0, 0.0);
-        let pos5 = Vector3::new(-9.9, 0.0, 0.0);
-        let pos6 = Vector3::new(10.1, 0.0, 0.0);
-        let pos7 = Vector3::new(-9.9, -9.9, -9.9);
-
-        let id1 = pos_to_id(pos1, n, width);
-        let id2 = pos_to_id(pos2, n, width);
-        let id3 = pos_to_id(pos3, n, width);
-        let id4 = pos_to_id(pos4, n, width);
-        let id5 = pos_to_id(pos5, n, width);
-        let id6 = pos_to_id(pos6, n, width);
-        let id7 = pos_to_id(pos7, n, width);
-
-        assert_eq!(id1, 555);
-        assert_eq!(id2, 555);
-        assert_eq!(id3, 556);
-        assert_eq!(id4, 559);
-        assert_eq!(id5, 550);
-        assert_eq!(id6, i64::MAX);
-        assert_eq!(id7, 0);
-    }
-
-    #[test]
     fn test_do_collision() {
         // do this test muliple times since there is a random element involved in do_collision
         for _i in 0..50 {
@@ -385,21 +363,28 @@ pub mod tests {
             ..Default::default()
         };
 
-        let params = CollisionParameters {
+        let collision_params = CollisionParameters {
             macroparticle: 10.0,
-            box_number: 1,
-            box_width: 1e-3,
             sigma: 1e-8,
             collision_limit: 10_000.0,
         };
+        let partition_params = PartitionParameters {
+            box_number: 1,
+            box_width: 1e-3,
+            target_density: 1.0,
+        };
         let dt = 1e-3;
-        collision_box.do_collisions(params, dt);
+        collision_box.do_collisions(collision_params, partition_params, dt);
         assert_eq!(collision_box.particle_number, MACRO_ATOM_NUMBER as i32);
-        let atom_number = params.macroparticle * MACRO_ATOM_NUMBER as f64;
+        let atom_number = collision_params.macroparticle * MACRO_ATOM_NUMBER as f64;
         assert_eq!(collision_box.atom_number, atom_number);
-        let density = atom_number / params.box_width.powi(3);
-        let expected_number =
-            (1.0 / SQRT2) * MACRO_ATOM_NUMBER as f64 * density * params.sigma * vel.norm() * dt;
+        let density = atom_number / partition_params.box_width.powi(3);
+        let expected_number = (1.0 / SQRT2)
+            * MACRO_ATOM_NUMBER as f64
+            * density
+            * collision_params.sigma
+            * vel.norm()
+            * dt;
         assert_approx_eq!(
             collision_box.expected_collision_number,
             expected_number,
@@ -407,7 +392,7 @@ pub mod tests {
         );
     }
 
-    /// Test that the system runs and causes nearby atoms to collide. More of an integration test than a unit test.
+    /// Test that the system runs and causes nearby atoms to collide.
     #[test]
     fn test_collisions() {
         let mut simulation_builder = SimulationBuilder::default();
@@ -455,13 +440,18 @@ pub mod tests {
         });
         sim.world.insert(CollisionParameters {
             macroparticle: 1.0,
-            box_number: 10,
-            box_width: 2.0,
             sigma: 10.0,
             collision_limit: 10_000.0,
         });
+        sim.world.insert(PartitionParameters {
+            box_number: 10,
+            box_width: 2.0,
+            target_density: 1.0,
+        });
 
         for _i in 0..10 {
+            // dispatcher.dispatch(&test_world);
+            // test_world.maintain();
             sim.step();
         }
 

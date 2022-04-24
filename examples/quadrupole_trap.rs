@@ -5,35 +5,53 @@ extern crate nalgebra;
 use lib::atom::{Atom, Force, Mass, Position, Velocity};
 use lib::initiate::NewlyCreated;
 use lib::integrator::Timestep;
-use lib::magnetic::force::MagneticDipole;
+use lib::losses::{ApplyOneBodyLossOption, ApplyOneBodyLossSystem, LossCoefficients};
+use lib::magnetic::force::{ApplyMagneticForceSystem, MagneticDipole};
 use lib::magnetic::quadrupole::QuadrupoleField3D;
-use lib::magnetic::MagneticTrapPlugin;
-use lib::simulation::SimulationBuilder;
-use rand_distr::{Distribution, Normal};
-
-use lib::output::file::FileOutputPlugin;
+use lib::output::file;
 use lib::output::file::Text;
 use nalgebra::Vector3;
+use rand_distr::{Distribution, Normal};
 use specs::prelude::*;
 use std::time::Instant;
 
 fn main() {
     let now = Instant::now();
 
-    let mut sim_builder = SimulationBuilder::default();
-    sim_builder.add_plugin(FileOutputPlugin::<Position, Text, Atom>::new(
-        "pos.txt".to_string(),
-        100,
-    ));
-    sim_builder.add_plugin(FileOutputPlugin::<Velocity, Text, Atom>::new(
-        "vel.txt".to_string(),
-        100,
-    ));
-    // Add magnetics systems (todo: as plugin)
-    sim_builder.world.register::<NewlyCreated>();
-    sim_builder.add_plugin(MagneticTrapPlugin);
+    // Create the simulation world and builder for the ECS dispatcher.
+    let mut world = World::new();
+    ecs::register_components(&mut world);
+    ecs::register_resources(&mut world);
+    world.register::<NewlyCreated>();
+    world.register::<MagneticDipole>();
+    let mut atomecs_builder = AtomecsDispatcherBuilder::new();
+    atomecs_builder.add_frame_initialisation_systems();
+    atomecs_builder.add_systems();
+    atomecs_builder.builder.add(
+        ApplyMagneticForceSystem {},
+        "magnetic_force",
+        &["magnetics_gradient"],
+    );
+    atomecs_builder
+        .builder
+        .add(ApplyOneBodyLossSystem {}, "one_body_loss", &[]);
+    atomecs_builder.add_frame_end_systems();
+    let mut builder = atomecs_builder.builder;
 
-    let mut sim = sim_builder.build();
+    // Configure simulation output.
+    builder = builder.with(
+        file::new::<Position, Text>("pos.txt".to_string(), 200),
+        "",
+        &[],
+    );
+    builder = builder.with(
+        file::new::<Velocity, Text>("vel.txt".to_string(), 200),
+        "",
+        &[],
+    );
+
+    let mut dispatcher = builder.build();
+    dispatcher.setup(&mut world);
 
     // Create magnetic field.
     sim.world
@@ -70,12 +88,21 @@ fn main() {
             .build();
     }
 
+    world.insert(ApplyOneBodyLossOption);
+
+    world.insert(LossCoefficients {
+        one_body_loss_rate: 0.5,
+        two_body_coefficient: 0.0,
+        three_body_coefficient: 0.0,
+    });
+
     // Define timestep
-    sim.world.insert(Timestep { delta: 1.0e-5 });
+    world.insert(Timestep { delta: 5.0e-5 });
 
     // Run the simulation for a number of steps.
-    for _i in 0..10000 {
-        sim.step();
+    for _i in 0..20000 {
+        dispatcher.dispatch(&mut world);
+        world.maintain();
     }
 
     println!("Simulation completed in {} ms.", now.elapsed().as_millis());
