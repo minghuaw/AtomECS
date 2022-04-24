@@ -162,8 +162,6 @@ pub mod tests {
     #[allow(unused_imports)]
     use crate::atom::{Atom, Position};
     #[allow(unused_imports)]
-    use crate::ecs;
-    #[allow(unused_imports)]
     use crate::integrator::{Step, Timestep};
     #[allow(unused_imports)]
     use nalgebra::Vector3;
