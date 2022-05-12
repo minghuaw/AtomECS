@@ -210,7 +210,7 @@ impl<'a, T> System<'a> for OvenCreateAtomsSystem<T> where T : AtomCreator + 'sta
                 }
 
                 let (new_vel, theta) =
-                velocity_generate(speed, &oven.direction, &oven.theta_distribution);
+                    velocity_generate(speed, &oven.direction, &oven.theta_distribution);
                 
                 if theta > oven.max_theta {
                     continue;
