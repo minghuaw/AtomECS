@@ -78,10 +78,21 @@ impl<'a, T, const N: usize> System<'a> for CalculateAbsorptionForcesSystem<T, N>
                 .par_join()
                 .for_each(|(scattered, force, _)| {
                     for (cooling, index, gaussian) in laser_array.iter().take(number_in_iteration) {
-                        let new_force = scattered.contents[index.index].scattered * HBAR
+                        let mut new_force = scattered.contents[index.index].scattered * HBAR
                             / timestep.delta
                             * gaussian.direction.normalize()
                             * cooling.wavenumber();
+
+                        if new_force.x.is_nan() {
+                            new_force.x = 0.0;
+                        }
+                        if new_force.y.is_nan() {
+                            new_force.y = 0.0;
+                        }
+                        if new_force.z.is_nan() {
+                            new_force.z = 0.0;
+                        }
+                        
                         force.force += new_force;
                     }
                 })
