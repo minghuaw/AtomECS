@@ -4,8 +4,9 @@ use specs::{Join, ReadStorage, System, WriteStorage};
 extern crate nalgebra;
 use crate::atom::Force;
 use crate::dipole::DipoleLight;
-use crate::dipole::Polarizability;
 use crate::laser::index::LaserIndex;
+
+use super::{PolarizabilityMap, TransitionLinewidth, TransitionWavelength, Wavelength, PolarizabilityMapKey};
 
 /// Calculates forces exerted onto the atoms by dipole laser beams.
 ///
@@ -17,19 +18,32 @@ impl<'a, const N: usize> System<'a> for ApplyDipoleForceSystem<N> {
     type SystemData = (
         ReadStorage<'a, DipoleLight>,
         ReadStorage<'a, LaserIndex>,
-        ReadStorage<'a, Polarizability>,
+        ReadStorage<'a, TransitionWavelength>,
+        ReadStorage<'a, TransitionLinewidth>,
+        ReadExpect<'a, PolarizabilityMap>,
         ReadStorage<'a, LaserIntensityGradientSamplers<N>>,
         WriteStorage<'a, Force>,
     );
 
     fn run(
         &mut self,
-        (dipole_light, dipole_index, polarizability, gradient_sampler, mut force): Self::SystemData,
+        (dipole_light, dipole_index, optical_trans_wavelengths, optical_trans_linewidths, map, gradient_sampler, mut force): Self::SystemData,
     ) {
-        (&mut force, &polarizability, &gradient_sampler)
+        (&mut force, &optical_trans_wavelengths, &optical_trans_linewidths, &gradient_sampler)
             .par_join()
-            .for_each(|(force, polarizability, sampler)| {
-                for (index, _dipole) in (&dipole_index, &dipole_light).join() {
+            .for_each(|(force, &transition_wavelength, &transition_linewidth, sampler)| {
+                for (index, dipole) in (&dipole_index, &dipole_light).join() {
+                    let wavelength = Wavelength::new(dipole.wavelength);
+                    let key = PolarizabilityMapKey {
+                        wavelength, transition_wavelength, transition_linewidth
+                    };
+                    let polarizability = match map.0.get(&key) {
+                        Some(polarizability) => polarizability,
+                        None => {
+                            panic!("No polarizability found for key: {:?}", key);
+                        }
+                    };
+
                     force.force +=
                         polarizability.prefactor * sampler.contents[index.index].gradient;
                 }
@@ -46,6 +60,7 @@ pub mod tests {
     use specs::{Builder, RunNow, World};
     extern crate nalgebra;
     use crate::constant;
+    use crate::dipole::Polarizability;
     use crate::laser;
     use crate::laser::gaussian::GaussianBeam;
     use crate::laser::DEFAULT_BEAM_LIMIT;
@@ -59,10 +74,19 @@ pub mod tests {
         test_world.register::<DipoleLight>();
         test_world.register::<Force>();
         test_world.register::<LaserIntensityGradientSamplers<{ DEFAULT_BEAM_LIMIT }>>();
-        test_world.register::<Polarizability>();
+        test_world.register::<TransitionWavelength>();
+        test_world.register::<TransitionLinewidth>();
 
-        let transition_linewidth = 32e6;
+        let wavelength = 1064.0e-9;
         let transition_lambda = 461e-9;
+        let transition_linewidth = 32e6;
+
+        let mut map = PolarizabilityMap::new();
+        let key = PolarizabilityMapKey::new(wavelength, transition_lambda, transition_linewidth);
+        let value = Polarizability::calculate_for(wavelength, transition_lambda, transition_linewidth);
+        map.insert(key, value);
+        test_world.insert(map);
+
         test_world
             .create_entity()
             .with(LaserIndex {
@@ -74,8 +98,8 @@ pub mod tests {
             })
             .build();
 
-        let transition =
-            Polarizability::calculate_for(1064e-9, transition_lambda, transition_linewidth);
+        // let transition =
+        //     Polarizability::calculate_for(1064e-9, transition_lambda, transition_linewidth);
         let atom1 = test_world
             .create_entity()
             .with(Force {
@@ -86,7 +110,8 @@ pub mod tests {
                     gradient: Vector3::new(0.0, 1.0, -2.0),
                 }; crate::laser::DEFAULT_BEAM_LIMIT],
             })
-            .with(transition)
+            .with(TransitionWavelength::new(transition_lambda))
+            .with(TransitionLinewidth::new(transition_linewidth))
             .build();
         let mut system = ApplyDipoleForceSystem::<{ DEFAULT_BEAM_LIMIT }>;
         system.run_now(&test_world);
@@ -114,7 +139,22 @@ pub mod tests {
         test_world.register::<DipoleLight>();
         test_world.register::<Force>();
         test_world.register::<LaserIntensityGradientSamplers<{ DEFAULT_BEAM_LIMIT }>>();
-        test_world.register::<Polarizability>();
+        test_world.register::<TransitionWavelength>();
+        test_world.register::<TransitionLinewidth>();
+
+        let wavelength = 1064.0e-9;
+        let transition_lambda = 461e-9;
+        let transition_linewidth = 32e6;
+
+        let mut map = PolarizabilityMap::new();
+        let key = PolarizabilityMapKey::new(wavelength, transition_lambda, transition_linewidth);
+        let value = Polarizability::calculate_for(wavelength, transition_lambda, transition_linewidth);
+        // Insert an irrelevant value to make sure the correct one is used.
+        let key2 = PolarizabilityMapKey::new(wavelength, 0.0, 0.0);
+        let value2 = Polarizability::calculate_for(wavelength, 0.0, 0.0);
+        map.insert(key2, value2);
+        map.insert(key, value);
+        test_world.insert(map);
 
         test_world
             .create_entity()
@@ -127,7 +167,6 @@ pub mod tests {
             })
             .build();
 
-        let transition = Polarizability::calculate_for(1064e-9, 461e-9, 32e6);
         let atom1 = test_world
             .create_entity()
             .with(Force {
@@ -138,7 +177,8 @@ pub mod tests {
                     gradient: Vector3::new(-8.4628e+7, -4.33992902e+13, -4.33992902e+13),
                 }; crate::laser::DEFAULT_BEAM_LIMIT],
             })
-            .with(transition)
+            .with(TransitionWavelength::new(transition_lambda))
+            .with(TransitionLinewidth::new(transition_linewidth))
             .build();
         let mut system = ApplyDipoleForceSystem::<{ DEFAULT_BEAM_LIMIT }>;
         system.run_now(&test_world);
@@ -159,10 +199,23 @@ pub mod tests {
         test_world.register::<DipoleLight>();
         test_world.register::<Force>();
         test_world.register::<LaserIntensityGradientSamplers<{ DEFAULT_BEAM_LIMIT }>>();
-        test_world.register::<Polarizability>();
+
+        test_world.register::<TransitionWavelength>();
+        test_world.register::<TransitionLinewidth>();
+
         test_world.register::<crate::atom::Position>();
         test_world.register::<crate::laser::gaussian::GaussianBeam>();
         test_world.register::<crate::laser::frame::Frame>();
+
+        let wavelength = 1064.0e-9;
+        let transition_lambda = 460.7e-9;
+        let transition_linewidth = 32e6;
+
+        let mut map = PolarizabilityMap::new();
+        let key = PolarizabilityMapKey::new(wavelength, transition_lambda, transition_linewidth);
+        let value = Polarizability::calculate_for(wavelength, transition_lambda, transition_linewidth);
+        map.insert(key, value);
+        test_world.insert(map);
 
         let power = 10.0;
         let e_radius = 60.0e-6 / (2.0_f64.sqrt());
@@ -214,7 +267,6 @@ pub mod tests {
             })
             .build();
 
-        let transition = Polarizability::calculate_for(1064e-9, 460.7e-9, 32e6);
         let atom1 = test_world
             .create_entity()
             .with(crate::atom::Position {
@@ -227,7 +279,8 @@ pub mod tests {
                 contents: [laser::intensity_gradient::LaserIntensityGradientSampler::default();
                     crate::laser::DEFAULT_BEAM_LIMIT],
             })
-            .with(transition)
+            .with(TransitionWavelength::new(transition_lambda))
+            .with(TransitionLinewidth::new(transition_linewidth))
             .build();
         let mut grad_system = laser::intensity_gradient::SampleGaussianLaserIntensityGradientSystem::<
             { DEFAULT_BEAM_LIMIT },

@@ -3,11 +3,11 @@ extern crate atomecs as lib;
 extern crate nalgebra;
 use lib::atom::{self, Position, Velocity};
 use lib::atom::Atom;
-use lib::dipole::{self, DipolePlugin};
+use lib::dipole::{self, DipolePlugin, PolarizabilityMap, PolarizabilityMapKey, Polarizability, TransitionWavelength, TransitionLinewidth};
 use lib::integrator::Timestep;
 use lib::laser::{self, LaserPlugin};
 use lib::laser::gaussian::GaussianBeam;
-use lib::output::file::{FileOutputPlugin};
+use lib::output::file::FileOutputPlugin;
 use lib::output::file::{Text, XYZ};
 use lib::simulation::SimulationBuilder;
 use nalgebra::Vector3;
@@ -32,6 +32,14 @@ fn main() {
     let power = 10.0;
     let e_radius = 60.0e-6 / (2.0_f64.sqrt());
     let wavelength = 1064.0e-9;
+    let transition_wavelength = 461.0e-9;
+    let transition_linewidth = 32.0e6;
+
+    let mut map = PolarizabilityMap::new();
+    let key = PolarizabilityMapKey::new(wavelength, transition_wavelength, transition_linewidth);
+    let value = Polarizability::calculate_for(wavelength, transition_wavelength, transition_linewidth);
+    map.insert(key, value);
+    sim.world.insert(map);
 
     let gaussian_beam = GaussianBeam {
         intersection: Vector3::new(0.0, 0.0, 0.0),
@@ -69,6 +77,8 @@ fn main() {
         })
         .build();
 
+
+
     // Define timestep
     sim.world.insert(Timestep { delta: 1.0e-5 });
 
@@ -83,9 +93,8 @@ fn main() {
         .with(atom::Velocity {
             vel: Vector3::new(0.0, 0.0, 0.0),
         })
-        .with(dipole::Polarizability::calculate_for(
-            wavelength, 461e-9, 32.0e6,
-        ))
+        .with(TransitionWavelength::new(transition_wavelength))
+        .with(TransitionLinewidth::new(transition_linewidth))
         .with(atom::Atom)
         .with(lib::initiate::NewlyCreated)
         .build();

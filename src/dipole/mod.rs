@@ -1,5 +1,8 @@
 //! A module that implements systems and components for dipole trapping in AtomECS.
 
+use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
+
 use specs::DispatcherBuilder;
 
 use crate::laser::LaserPlugin;
@@ -8,6 +11,8 @@ use crate::laser::index::LaserIndex;
 
 use serde::{Deserialize, Serialize};
 use specs::prelude::*;
+
+use ordered_float::OrderedFloat;
 
 pub mod force;
 
@@ -33,18 +38,122 @@ impl DipoleLight {
         2.0 * constant::PI / self.wavelength
     }
 }
+
+/// A custom type that simply wraps a `f64` representing the wavelength of a laser beam.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Wavelength {
+    value: OrderedFloat<f64>,
+}
+
+impl Wavelength {
+    pub fn new(value: f64) -> Self {
+        Wavelength {
+            value: OrderedFloat(value),
+        }
+    }
+}
+
+/// A component that represents the optical transition wavelength of an atom.
+/// 
+/// Added by Minghua Wu on Sep. 22, 2023
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TransitionWavelength {
+    value: OrderedFloat<f64>,
+}
+impl Component for TransitionWavelength {
+    type Storage = VecStorage<Self>;
+}
+
+impl TransitionWavelength {
+    pub fn new(value: f64) -> Self {
+        TransitionWavelength {
+            value: OrderedFloat(value),
+        }
+    }
+}
+
+/// A component that represents the optical transition linewidth of an atom.
+/// 
+/// Added by Minghua Wu on Sep. 22, 2023
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TransitionLinewidth {
+    value: OrderedFloat<f64>,
+}
+impl Component for TransitionLinewidth {
+    type Storage = VecStorage<Self>;
+}
+
+impl TransitionLinewidth {
+    pub fn new(value: f64) -> Self {
+        TransitionLinewidth {
+            value: OrderedFloat(value),
+        }
+    }
+}
+
+/// A wrapper around `Wavelength`, `OpticalTransitionWavelength` and 
+/// `OpticalTransitionLinewidth` that can be used as a key in a `HashMap`. 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PolarizabilityMapKey {
+    pub wavelength: Wavelength,
+    pub transition_wavelength: TransitionWavelength,
+    pub transition_linewidth: TransitionLinewidth,
+}
+
+impl PolarizabilityMapKey {
+    pub fn new(
+        wavelength: f64,
+        transition_wavelength: f64,
+        transition_linewidth: f64,
+    ) -> Self {
+        PolarizabilityMapKey {
+            wavelength: Wavelength::new(wavelength),
+            transition_wavelength: TransitionWavelength::new(transition_wavelength),
+            transition_linewidth: TransitionLinewidth::new(transition_linewidth),
+        }
+    }
+}
+
+/// A resource that maps PolarizabilityMapKey to Polarizability.
+/// 
+/// Added by Minghua Wu on Sep. 22, 2023
+pub struct PolarizabilityMap(pub HashMap<PolarizabilityMapKey, Polarizability>);
+
+impl PolarizabilityMap {
+    pub fn new() -> Self {
+        PolarizabilityMap(HashMap::new())
+    }
+}
+
+impl Deref for PolarizabilityMap {
+    type Target = HashMap<PolarizabilityMapKey, Polarizability>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PolarizabilityMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// An atom component that represents the polarizability of the atom in a `DipoleLight` laser beam.
 ///
 /// The force exterted on the atom is equal to:
 /// `force = polarizability.prefactor * intensity_gradient`
-#[derive(Deserialize, Serialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 pub struct Polarizability {
     /// The prefactor is a constant of proportionality that relates the intensity gradient (in W/m) to the force on the atom (in N).
     pub prefactor: f64,
 }
-impl Component for Polarizability {
-    type Storage = VecStorage<Self>;
-}
+
+// // This is commented out to make sure that the user does not accidentally add this component to an atom.
+// impl Component for Polarizability {
+//     type Storage = VecStorage<Self>;
+// }
+
 impl Polarizability {
     /// Calculate the polarizability of an atom in a dipole beam of given wavelength, detuned from a strong optical transition.
     ///

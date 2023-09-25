@@ -14,7 +14,6 @@ use crate::{
         INTEGRATE_POSITION_SYSTEM_NAME, INTEGRATE_VELOCITY_SYSTEM_NAME,
     },
     magnetic::MagneticsPlugin,
-    output::console_output::ConsoleOutputSystem,
     sim_region::SimulationRegionPlugin,
 };
 
