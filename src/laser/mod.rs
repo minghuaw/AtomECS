@@ -6,6 +6,7 @@ pub mod index;
 pub mod intensity;
 pub mod intensity_gradient;
 pub mod sampler;
+pub mod harmonic;
 
 use crate::initiate::NewlyCreated;
 use crate::integrator::INTEGRATE_POSITION_SYSTEM_NAME;
@@ -123,4 +124,16 @@ fn register_components(world: &mut World) {
     world.register::<gaussian::GaussianBeam>();
     world.register::<gaussian::CircularMask>();
     world.register::<frame::Frame>();
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum LaserTrapModel {
+    Gaussian,
+    Harmonic,
+}
+
+impl Default for LaserTrapModel {
+    fn default() -> Self {
+        LaserTrapModel::Gaussian
+    }
 }

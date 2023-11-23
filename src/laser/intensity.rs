@@ -8,7 +8,9 @@ extern crate serde;
 
 use super::frame::Frame;
 use super::gaussian::{get_gaussian_beam_intensity, CircularMask, GaussianBeam};
+use super::LaserTrapModel;
 use crate::atom::Position;
+use crate::laser::harmonic::gaussian_beam_intensity_first_order_taylor_expansion;
 use crate::laser::index::LaserIndex;
 use serde::{Deserialize, Serialize};
 use specs::prelude::*;
@@ -25,7 +27,7 @@ pub struct LaserIntensitySampler {
 impl Default for LaserIntensitySampler {
     fn default() -> Self {
         LaserIntensitySampler {
-            /// Intensity in SI units of W/m^2
+            // Intensity in SI units of W/m^2
             intensity: f64::NAN,
         }
     }
@@ -53,7 +55,7 @@ impl<'a, const N: usize> System<'a> for InitialiseLaserIntensitySamplersSystem<N
     fn run(&mut self, (mut samplers,): Self::SystemData) {
         use rayon::prelude::*;
 
-        (&mut samplers).par_join().for_each(|mut sampler| {
+        (&mut samplers).par_join().for_each(|sampler| {
             sampler.contents = [LaserIntensitySampler::default(); N];
         });
     }
@@ -75,14 +77,20 @@ impl<'a, const N: usize> System<'a> for SampleLaserIntensitySystem<N> {
         ReadStorage<'a, CircularMask>,
         ReadStorage<'a, Frame>,
         ReadStorage<'a, Position>,
+        Option<Read<'a, LaserTrapModel>>,
         WriteStorage<'a, LaserIntensitySamplers<N>>,
     );
 
     fn run(
         &mut self,
-        (entities, indices, gaussian, masks, frames, position, mut intensity_samplers): Self::SystemData,
+        (entities, indices, gaussian, masks, frames, position, model, mut intensity_samplers): Self::SystemData,
     ) {
         use rayon::prelude::*;
+
+        let model = match model {
+            Some(model) => *model,
+            None => LaserTrapModel::Gaussian,
+        };
 
         // There are typically only a small number of lasers in a simulation.
         // For a speedup, cache the required components into thread memory,
@@ -119,12 +127,23 @@ impl<'a, const N: usize> System<'a> for SampleLaserIntensitySystem<N> {
                     for (index, gaussian, mask, frame) in
                         laser_array.iter().take(number_in_iteration)
                     {
-                        samplers.contents[index.index].intensity = get_gaussian_beam_intensity(
-                            gaussian,
-                            pos,
-                            mask.as_ref(),
-                            frame.as_ref(),
-                        );
+                        let intensity = match model {
+                            LaserTrapModel::Gaussian => get_gaussian_beam_intensity(
+                                gaussian,
+                                pos,
+                                mask.as_ref(),
+                                frame.as_ref(),
+                            ),
+                            LaserTrapModel::Harmonic => {
+                                gaussian_beam_intensity_first_order_taylor_expansion(
+                                    gaussian,
+                                    pos,
+                                    mask.as_ref(),
+                                    frame.as_ref(),
+                                )
+                            }
+                        };
+                        samplers.contents[index.index].intensity = intensity;
                     }
                 });
         }
