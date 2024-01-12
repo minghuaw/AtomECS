@@ -7,7 +7,7 @@ extern crate rayon;
 extern crate serde;
 
 use super::frame::Frame;
-use super::gaussian::{get_gaussian_beam_intensity, CircularMask, GaussianBeam};
+use super::gaussian::{get_gaussian_beam_intensity, CircularAperture, CircularMask, GaussianBeam};
 use super::LaserTrapModel;
 use crate::atom::Position;
 use crate::laser::harmonic::gaussian_beam_intensity_first_order_taylor_expansion;
@@ -75,6 +75,7 @@ impl<'a, const N: usize> System<'a> for SampleLaserIntensitySystem<N> {
         ReadStorage<'a, LaserIndex>,
         ReadStorage<'a, GaussianBeam>,
         ReadStorage<'a, CircularMask>,
+        ReadStorage<'a, CircularAperture>,
         ReadStorage<'a, Frame>,
         ReadStorage<'a, Position>,
         Option<Read<'a, LaserTrapModel>>,
@@ -83,7 +84,17 @@ impl<'a, const N: usize> System<'a> for SampleLaserIntensitySystem<N> {
 
     fn run(
         &mut self,
-        (entities, indices, gaussian, masks, frames, position, model, mut intensity_samplers): Self::SystemData,
+        (
+            entities,
+            indices,
+            gaussian,
+            masks,
+            apertures,
+            frames,
+            position,
+            model,
+            mut intensity_samplers,
+        ): Self::SystemData,
     ) {
         use rayon::prelude::*;
 
@@ -99,6 +110,7 @@ impl<'a, const N: usize> System<'a> for SampleLaserIntensitySystem<N> {
             LaserIndex,
             GaussianBeam,
             Option<CircularMask>,
+            Option<CircularAperture>,
             Option<Frame>,
         );
         let laser_cache: Vec<CachedLaser> = (&entities, &indices, &gaussian)
@@ -108,6 +120,7 @@ impl<'a, const N: usize> System<'a> for SampleLaserIntensitySystem<N> {
                     *index,
                     *gaussian,
                     masks.get(laser_entity).cloned(),
+                    apertures.get(laser_entity).cloned(),
                     frames.get(laser_entity).cloned(),
                 )
             })
@@ -124,7 +137,7 @@ impl<'a, const N: usize> System<'a> for SampleLaserIntensitySystem<N> {
             (&mut intensity_samplers, &position)
                 .par_join()
                 .for_each(|(samplers, pos)| {
-                    for (index, gaussian, mask, frame) in
+                    for (index, gaussian, mask, aperture, frame) in
                         laser_array.iter().take(number_in_iteration)
                     {
                         let intensity = match model {
@@ -139,6 +152,7 @@ impl<'a, const N: usize> System<'a> for SampleLaserIntensitySystem<N> {
                                     gaussian,
                                     pos,
                                     mask.as_ref(),
+                                    aperture.as_ref(),
                                     frame.as_ref(),
                                 )
                             }

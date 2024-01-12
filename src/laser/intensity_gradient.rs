@@ -14,6 +14,7 @@ use crate::laser::index::LaserIndex;
 use nalgebra::Vector3;
 use specs::{Component, Join, ReadStorage, System, VecStorage, WriteStorage};
 
+use super::gaussian::{CircularAperture, CircularMask};
 use super::LaserTrapModel;
 
 /// Represents the laser intensity at the position of the atom with respect to a certain laser beam
@@ -58,6 +59,8 @@ impl<'a, const N: usize> System<'a> for SampleGaussianLaserIntensityGradientSyst
         ReadStorage<'a, DipoleLight>,
         ReadStorage<'a, LaserIndex>,
         ReadStorage<'a, GaussianBeam>,
+        ReadStorage<'a, CircularMask>,
+        ReadStorage<'a, CircularAperture>,
         ReadStorage<'a, Frame>,
         ReadStorage<'a, Position>,
         Option<Read<'a, LaserTrapModel>>,
@@ -66,7 +69,7 @@ impl<'a, const N: usize> System<'a> for SampleGaussianLaserIntensityGradientSyst
 
     fn run(
         &mut self,
-        (dipole, index, gaussian, reference_frame, pos, model, mut sampler): Self::SystemData,
+        (dipole, index, gaussian, masks, apertures, reference_frame, pos, model, mut sampler): Self::SystemData,
     ) {
         use rayon::prelude::*;
 
@@ -74,13 +77,26 @@ impl<'a, const N: usize> System<'a> for SampleGaussianLaserIntensityGradientSyst
             Some(model) => *model,
             None => LaserTrapModel::Gaussian,
         };
-        for (_dipole, index, beam, reference) in
-            (&dipole, &index, &gaussian, &reference_frame).join()
+        for (_dipole, index, beam, mask, aperture, reference) in (
+            &dipole,
+            &index,
+            &gaussian,
+            masks.maybe(),
+            apertures.maybe(),
+            &reference_frame,
+        )
+            .join()
         {
             (&pos, &mut sampler).par_join().for_each(|(pos, sampler)| {
                 let gradient = match model {
-                    LaserTrapModel::Gaussian => get_gaussian_beam_intensity_gradient(beam, pos, reference),
-                    LaserTrapModel::Harmonic => gaussian_beam_intensity_gradient_first_order_taylor_expansion(beam, pos, reference),
+                    LaserTrapModel::Gaussian => {
+                        get_gaussian_beam_intensity_gradient(beam, pos, reference)
+                    }
+                    LaserTrapModel::Harmonic => {
+                        gaussian_beam_intensity_gradient_first_order_taylor_expansion(
+                            beam, pos, mask, aperture, reference,
+                        )
+                    }
                 };
 
                 sampler.contents[index.index].gradient = gradient;

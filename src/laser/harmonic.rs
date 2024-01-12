@@ -4,7 +4,7 @@ use crate::{atom::Position, constant::PI, maths};
 
 use super::{
     frame::Frame,
-    gaussian::{CircularMask, GaussianBeam},
+    gaussian::{CircularMask, GaussianBeam, CircularAperture},
 };
 
 #[allow(non_snake_case)]
@@ -12,6 +12,7 @@ pub(crate) fn gaussian_beam_intensity_first_order_taylor_expansion(
     beam: &GaussianBeam,
     pos: &Position,
     mask: Option<&CircularMask>,
+    aperture: Option<&CircularAperture>,
     frame: Option<&Frame>,
 ) -> f64 {
     // Relative distance between the point and the beam intersection
@@ -55,6 +56,16 @@ pub(crate) fn gaussian_beam_intensity_first_order_taylor_expansion(
         }
         None => beam.power,
     };
+    let P = match aperture {
+        Some(aperture) => {
+            if relative_distance > aperture.radius {
+                0.0
+            } else {
+                P
+            }
+        }
+        None => P,
+    };
     let w_e = beam.e_radius;
     let z_r = beam.rayleigh_range;
     let x = relative_distance;
@@ -73,6 +84,8 @@ pub(crate) fn gaussian_beam_intensity_first_order_taylor_expansion(
 pub(crate) fn gaussian_beam_intensity_gradient_first_order_taylor_expansion(
     beam: &GaussianBeam,
     pos: &Position,
+    mask: Option<&CircularMask>,
+    aperture: Option<&CircularAperture>,
     reference_frame: &Frame,
 ) -> Vector3<f64> {
     let rela_coord = pos.pos - beam.intersection;
@@ -108,5 +121,29 @@ pub(crate) fn gaussian_beam_intensity_gradient_first_order_taylor_expansion(
             / f64::powf((z * z) * 1.0 / (z_r * z_r) + 1.0, 3.0)
             / PI;
 
-    reference_frame.x_vector * gx + reference_frame.y_vector * gy + beam.direction * gz
+    let g = reference_frame.x_vector * gx + reference_frame.y_vector * gy + beam.direction * gz;
+
+    let g = match mask {
+        Some(mask) => {
+            if x * x + y * y < mask.radius * mask.radius {
+                Vector3::new(0.0, 0.0, 0.0)
+            } else {
+                g
+            }
+        }
+        None => g,
+    };
+
+    let g = match aperture {
+        Some(aperture) => {
+            if x * x + y * y > aperture.radius * aperture.radius {
+                Vector3::new(0.0, 0.0, 0.0)
+            } else {
+                g
+            }
+        }
+        None => g,
+    };
+
+    g
 }

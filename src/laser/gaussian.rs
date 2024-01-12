@@ -159,6 +159,19 @@ impl Component for CircularMask {
     type Storage = HashMapStorage<Self>;
 }
 
+/// A component that only allows light to pass through a circular aperture.
+/// 
+/// This is no effect if TrapModel is `Gaussian`.
+#[derive(Clone, Copy)]
+pub struct CircularAperture {
+    /// Radius of the aperture in units of m.
+    pub radius: f64,
+}
+
+impl Component for CircularAperture {
+    type Storage = HashMapStorage<Self>;
+}
+
 /// Returns the intensity of a gaussian laser beam at the specified position.
 pub fn get_gaussian_beam_intensity(
     beam: &GaussianBeam,
